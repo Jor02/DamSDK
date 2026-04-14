@@ -3,7 +3,7 @@
 #include "damsdk/gui/platform/windows/Window.h"
 #include "damsdk/gui/platform/windows/Bitmap.h"
 #include "damsdk/gui/platform/windows/GDIDrawingContext.h"
-#include "utils/portable_stdint.h"
+#include "damsdk/utils/portable_stdint.h"
 
 namespace DamSDK {
 namespace Gui {

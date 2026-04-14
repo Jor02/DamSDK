@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <ole2.h>
 #include <objidl.h>
-#include "utils/portable_stdint.h"
+#include "damsdk/utils/portable_stdint.h"
 
 namespace DamSDK {
     namespace Gui {

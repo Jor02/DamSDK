@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <windef.h>
 #include "damsdk/gui/base/View.h"
-#include "utils/portable_stdint.h"
+#include "damsdk/utils/portable_stdint.h"
 
 namespace DamSDK {
     namespace Api { class EditorBase; }

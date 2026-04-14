@@ -1,6 +1,6 @@
 #pragma once
 #include "control.h"
-#include "utils/portable_stdint.h"
+#include "damsdk/utils/portable_stdint.h"
 #include "damsdk/gui/platform/windows/GDIDrawingContext.h"
 #include "damsdk/gui/platform/windows/Bitmap.h"
 #include "damsdk/api/DamPlugin.h"

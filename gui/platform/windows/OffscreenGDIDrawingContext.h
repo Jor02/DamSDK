@@ -2,7 +2,7 @@
 #include <Windows.h>
 #include <windef.h>
 #include "GDIDrawingContext.h"
-#include <utils/portable_stdint.h>
+#include <damsdk/utils/portable_stdint.h>
 
 namespace DamSDK {
     namespace Gui {
