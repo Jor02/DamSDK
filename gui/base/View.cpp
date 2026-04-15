@@ -36,15 +36,21 @@ namespace Base {
     void View::setDirty(bool isDirty) { _isDirty = isDirty; }
 
     // STUB: DELAYLAMA 0x10007220
-    void View::update(Platform::Windows::GDIDrawingContext *drawingContext) { }
+    void View::update(Platform::Windows::GDIDrawingContext *drawingContext) {
+        bool isActive = this->isDirty();
+        if (isActive != false) {
+            this->onDraw(drawingContext);
+            this->setDirty(false);
+        }
+    }
 
-    // STUB: DELAYLAMA 0x10004450 FOLDED
-    void View::onDraw(Platform::Windows::GDIDrawingContext* drawingContext) { }
+    // FUNCTION: DELAYLAMA 0x10004450 FOLDED
+    void View::onDraw(Platform::Windows::GDIDrawingContext* drawingContext) {}
 
-    // STUB: DELAYLAMA 0x10007210
+    // FUNCTION: DELAYLAMA 0x10007210
     bool View::onMouseWheel(Platform::Windows::GDIDrawingContext *drawingContext, POINT *relativeMousePoint, float scrollDelta) { return false; }
 
-    // STUB: DELAYLAMA 0x100071f0
+    // FUNCTION: DELAYLAMA 0x100071f0
     void View::onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* point) { }
 
     // FUNCTION: DELAYLAMA 0x10004570
@@ -128,34 +134,31 @@ namespace Base {
     }
 
     // FUNCTION: DELAYLAMA 0x10007200
-    bool View::routeMessage() {
+    bool View::routeMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, POINT* mousePos) {
         return false;
     }
 
     // STUB: DELAYLAMA 0x10007250
     void View::setRect(RECT* rect) {
-        // this->rect.left = rect->left;
-        // this->rect.top = rect->top;
-        // this->rect.right = rect->right;
-        // this->rect.bottom = rect->bottom;
-        // (*this->vtable->setDirty)(1);
-        // return;
+        this->rect.left = rect->left;
+        this->rect.top = rect->top;
+        this->rect.right = rect->right;
+        this->rect.bottom = rect->bottom;
+        this->setDirty(true);
     }
 
+    // FUNCTION: DELAYLAMA 0x10004670 FOLDED
     void View::returnTrue1(Platform::Windows::Window *frame) {}
+
+    // FUNCTION: DELAYLAMA 0x10004670 FOLDED
     void View::returnTrue2(Platform::Windows::Window *frame) {}
 
     // STUB: DELAYLAMA 0x10007280
     void View::release() {
-        // int referenceCount;
-        //
-        // referenceCount = this->referenceCount;
-        // if (((0 < referenceCount) &&
-        //     (referenceCount = referenceCount + -1, this->referenceCount = referenceCount,
-        //     referenceCount == 0)) && (this != (View *)0x0)) {
-        //   (*this->vtable->destructor)(1);
-        // }
-        // return;
+        int referenceCount = this->referenceCount;
+        if (((0 < referenceCount) && (referenceCount = referenceCount + -1, this->referenceCount = referenceCount, referenceCount == 0)) && (this != nullptr)) {
+            delete this;
+        }
     }
 }
 }

@@ -47,8 +47,6 @@ namespace Windows {
 
     // STUB: DELAYLAMA 0x100071e0
     void Window::resetVtable(Window* frame) {
-        // frame->vtable = (WindowVTable *)&ViewVTable_1000bbec;
-        // return;
     }
 
     // FUNCTION: DELAYLAMA 0x10007520
@@ -86,27 +84,38 @@ namespace Windows {
         }
     }
 
+    // FUNCTION: DELAYLAMA 0x10007960
+    void Window::refresh() {
+        if ((this->visible != false) && (this->redrawPending == false)) {
+            if (needsRedraw()) {
+                HDC hDC = GetDC(this->hWnd);
+                GDIDrawingContext* drawingContext = new GDIDrawingContext(this, hDC, this->hWnd);
+                if (drawingContext != nullptr) {
+                    this->update(drawingContext);
+                    delete drawingContext;
+                }
+                ReleaseDC(this->hWnd,hDC);
+            }
+        }
+    }
+
     // FUNCTION: DELAYLAMA 0x100078b0
     void Window::update(GDIDrawingContext *drawingContext)
     {
-        bool isActive;
-        int i;
-        
         if (this->visible != false) {
             if (this->modalView != nullptr) {
                 this->modalView->update(drawingContext);
                 return;
             }
 
-            isActive = this->isDirty();
-
-            if (isActive != false) {
+            bool windowIsDirty = this->isDirty();
+            if (windowIsDirty != false) {
                 this->onDraw(drawingContext);
                 this->setDirty(false);
                 return;
             }
 
-            i = 0;
+            int i = 0;
             if (0 < (int)this->numChildren) {
             do {
                 this->children[i]->update(drawingContext);
@@ -144,7 +153,7 @@ namespace Windows {
         this->hWnd = hChild;
 
         SetWindowLongA(hChild,GWL_USERDATA,(LONG)this);
-        // setDragAndDropState(this,true);
+        setDragAndDropState(true);
         
         return true;
     }
@@ -346,24 +355,23 @@ namespace Windows {
         return;
     }
 
-    // FUNCTION: DELAYLAMA 0x10007960
-    void Window::refresh() {
-        if ((this->visible != false) && (this->redrawPending == false)) {
-            if (needsRedraw()) {
-                HDC hDC = GetDC(this->hWnd);
-                GDIDrawingContext* drawingContext = new GDIDrawingContext(this, hDC, this->hWnd);
-                if (drawingContext != NULL) {
-                    this->update(drawingContext);
-                    delete drawingContext;
-                }
-                ReleaseDC(this->hWnd,hDC);
-            }
-        }
-    }
-
     // STUB: DELAYLAMA 0x10007920
     bool Window::needsRedraw() {
-        return true; // TODO: Implement actual implementation.
+        bool isWindowDirty = this->isDirty();
+        if (this->modalView == nullptr && isWindowDirty == false) {
+            if (0 < this->numChildren) {
+                int i = 0;
+                do {
+                    bool childIsDirty = this->children[i]->isDirty();
+                    if (childIsDirty != false) {
+                        return true;
+                    }
+                    i++;
+                } while (i < this->numChildren);
+            }
+            return false;
+        }
+        return true;
     }
 
     // FUNCTION: DELAYLAMA 0x10007a40
@@ -394,52 +402,51 @@ namespace Windows {
         control->parent = this;
 
         // Call virtual function
-        // control->returnTrue(this);
+        control->returnTrue(this);
 
         return true;
     }
 
-    // STUB: DELAYLAMA 0x10007350
+    // FUNCTION: DELAYLAMA 0x10007350
     void Window::cleanup() {
-        // bool callExtraFlag;
-        // Window *local_10;
-        // undefined1 *puStack_8;
-        // undefined4 local_4;
-        //
-        // puStack_8 = &LAB_1000ac88;
-        // this->vtable = &WindowVTable_1000bc48;
-        // local_4 = 0;
-        // local_10 = this;
-        // GDIDrawingContext::setCursor((GDIDrawingContext *)this,0);
-        // setDragAndDropState(this,false);
-        // callExtraFlag = true;
-        // destroyChildren(this,&callExtraFlag);
-        // if (this->backgroundBitmap != (Bitmap *)0x0) {
-        //   Bitmap::unregisterBitmap(this->backgroundBitmap);
-        // }
-        // if (this->hWnd != (HWND)0x0) {
-        //   SetWindowLongA(this->hWnd,-0x15,0);
-        //   DestroyWindow(this->hWnd);
-        //   GDIDrawingContext::unregisterClass();
-        // }
-        // if (this->isActive != false) {
-        //   closeWindow(this);
-        // }
-        // if (this->closeParameter != (void *)0x0) {
-        //   free(this->closeParameter);
-        // }
-        // resetVtable(this);
-        // return;
+        GDIDrawingContext::setCursor(0);
+        setDragAndDropState(false);
+        bool callExtraFlag = true;
+
+        destroyChildren(&callExtraFlag);
+        if (this->backgroundBitmap != nullptr) {
+          Bitmap::unregisterBitmap(this->backgroundBitmap);
+        }
+        if (this->hWnd != nullptr) {
+          SetWindowLongA(this->hWnd,-0x15,0);
+          DestroyWindow(this->hWnd);
+          Window::unregisterWindowClass();
+        }
+        if (this->isActive != false) {
+          closeWindow();
+        }
+        if (this->closeParameter != (void *)0x0) {
+          free(this->closeParameter);
+        }
+        resetVtable(this);
     }
 
-    // STUB: DELAYLAMA 0x10007410
+    // FUNCTION: DELAYLAMA 0x10008340
+    void Window::unregisterWindowClass() {
+        g_RegistrationCount = g_RegistrationCount + -1;
+        if (g_RegistrationCount == 0) {
+          UnregisterClassA((LPCSTR)&g_szWindowClassName,g_hInstance);
+        }
+    }
+
+    // FUNCTION: DELAYLAMA 0x10007410
     bool Window::closeWindow() {
-        // if (((this->isActive != false) && (this->visible != false)) && (this->handle != (HWND)0x0)) {
-        //   (*(((this->editor->guiEditor).mainPlugin)->vtable->audioVtable).audioEffectX.
-        //     closePluginEditorOnHost)(this->closeParameter);
-        //   this->handle = (HWND)0x0;
-        //   return true;
-        // }
+        if (((this->isActive != false) && (this->visible != false)) && (this->handle != nullptr))
+        {
+          this->editor->mainPlugin->closePluginEditorOnHost(this->closeParameter);
+          this->handle = nullptr;
+          return true;
+        }
         return false;
     }
 
@@ -504,36 +511,32 @@ namespace Windows {
 
     // STUB: DELAYLAMA 0x10007740
     bool Window::routeMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, POINT* mousePos) {
-        // Control *pCVar1;
-        // bool childEnabled;
-        // bool cVar2;
-        // int i;
-        //
-        // if ((this->modalView != nullptr) || (this->colors != (Color *)0x0)) {
-        //   return false;
-        // }
-        // i = this->numChildren + -1;
-        // if (i < 0) {
-        //   return false;
-        // }
-        // do {
-        //   childEnabled = (bool)(*(this->children[i]->vtable->view).getEnabled)();
-        //   if (childEnabled != false) {
-        //     pCVar1 = this->children[i];
-        //     if (((((pCVar1->members).viewMembers.rect.left <= mousePos->x) &&
-        //          (mousePos->x <= (pCVar1->members).viewMembers.rect.right)) &&
-        //         ((pCVar1->members).viewMembers.rect.top <= mousePos->y)) &&
-        //        ((mousePos->y <= (pCVar1->members).viewMembers.rect.bottom &&
-        //         (cVar2 = (bool)(*(pCVar1->vtable->view).routeMessage)(uMsg,wParam,lParam,mousePos),
-        //         cVar2 != false)))) {
-        //       return true;
-        //     }
-        //   }
-        //   i = i + -1;
-        //   if (i < 0) {
-        //     return false;
-        //   }
-        // } while( true );
+        if ((this->modalView != nullptr) || (this->colors != nullptr)) {
+          return false;
+        }
+        
+        int i = this->numChildren + -1;
+
+        if (i < 0) {
+          return false;
+        }
+
+        do {
+            bool childEnabled = this->children[i]->getEnabled();
+            if (childEnabled != false) {
+                Controls::Control *control = this->children[i];
+                if (control->rect.left <= mousePos->x && mousePos->x <= control->rect.right && control->rect.top <= mousePos->y && mousePos->y <= control->rect.bottom) {
+                    bool cVar2 = control->routeMessage(uMsg,wParam,lParam,mousePos);
+                    if (cVar2 != false) {
+                        return true;
+                    }
+                }
+            }
+            i++;
+            if (i < 0) {
+                return false;
+            }
+        } while( true );
         return false;
     }
 
@@ -543,25 +546,25 @@ namespace Windows {
         // int iVar2;
         // undefined3 in_stack_00000009;
         //
-        // iVar2 = 0;
-        // bVar1 = false;
+        // int iVar2 = 0;
+        // bool bVar1 = false;
         // if (0 < (int)this->numChildren) {
-        //   do {
+        //     do {
+        //         if (bVar1) {
+        //             this->children[iVar2 + -1] = this->children[iVar2];
+        //         }
+        //         if (this->children[iVar2] == child) {
+        //             child->attached(this);
+        //             if (*_shouldRelease != '\0') {
+        //                 (*(child->vtable->view).release)();
+        //             }
+        //             bVar1 = true;
+        //         }
+        //         iVar2 = iVar2 + 1;
+        //     } while (iVar2 < (int)this->numChildren);
         //     if (bVar1) {
-        //       this->children[iVar2 + -1] = this->children[iVar2];
+        //         this->numChildren = this->numChildren + -1;
         //     }
-        //     if (this->children[iVar2] == child) {
-        //       (*(child->vtable->view).attached)(this);
-        //       if (*_shouldRelease != '\0') {
-        //         (*(child->vtable->view).release)();
-        //       }
-        //       bVar1 = true;
-        //     }
-        //     iVar2 = iVar2 + 1;
-        //   } while (iVar2 < (int)this->numChildren);
-        //   if (bVar1) {
-        //     this->numChildren = this->numChildren + -1;
-        //   }
         // }
         return true;
     }
@@ -597,7 +600,7 @@ namespace Windows {
         return true;
     }
 
-    // STUB: DELAYLAMA 0x10007bb0
+    // FUNCTION: DELAYLAMA 0x10007bb0
     bool Window::containsChild(Controls::Control* target) {
         bool output = false;
         int i = 0;
@@ -615,7 +618,7 @@ namespace Windows {
         return output;
     }
 
-    // STUB: DELAYLAMA 0x10007be0
+    // FUNCTION: DELAYLAMA 0x10007be0
     int32_t Window::setModalView(Base::View* view) {
         if ((view != nullptr) && (this->modalView != nullptr)) {
           return 0;

@@ -142,7 +142,7 @@ namespace Api {
     }
 
     // FUNCTION: DELAYLAMA 0x10002700
-    bool AudioBaseExtended::closePluginEditorOnHost(HWND windowHandle) {
+    bool AudioBaseExtended::closePluginEditorOnHost(void* windowHandle) {
         if (this->hostCallback == nullptr)
             return false;
         int32_t output = this->hostCallback(&this->plugin, hostClosePluginEditor, 0, NULL, windowHandle, 0.0f); 

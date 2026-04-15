@@ -1,5 +1,4 @@
 #pragma once
-#define _WIN32_WINNT 0x0501
 #include <windows.h>
 #include <windef.h>
 #include "damsdk/gui/base/View.h"
@@ -42,31 +41,32 @@ namespace Windows {
         public:
             Window(RECT *pRect, HWND hParent, Api::EditorBase *editor);
             ~Window();
-            void update(GDIDrawingContext *drawingContext) override;
-            void onDraw(GDIDrawingContext *drawingContext) override;
-            bool openPluginWindow(HWND hParent);
-            bool needsRedraw();
-            bool registerControl(Controls::Control *control);
-            bool onMouseWheel(GDIDrawingContext *drawingContext, POINT *relativeMousePoint, float scrollDelta) override;
-            void drawControlOrSelf(Controls::Control *target);
-            void refresh();
+            virtual void update(GDIDrawingContext *drawingContext) override;
+            virtual void onDraw(GDIDrawingContext *drawingContext) override;
+            virtual bool openPluginWindow(HWND hParent);
+            virtual bool needsRedraw();
+            virtual bool registerControl(Controls::Control *control);
+            virtual bool onMouseWheel(GDIDrawingContext *drawingContext, POINT *relativeMousePoint, float scrollDelta) override;
+            virtual void drawControlOrSelf(Controls::Control *target);
+            virtual void refresh();
+            virtual void setBackgroundBitmap(Bitmap *background);
+            virtual void resetVtable(Window* frame);
+            virtual void cleanup();
+            virtual bool closeWindow();
+            virtual bool setDragAndDropState(bool enable);
+            virtual void onMouseDown(GDIDrawingContext* drawingContext, POINT* mousePos);
+            virtual bool routeMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, POINT* mousePos);
+            virtual bool removeChild(Controls::Control* child, bool shouldRelease);
+            virtual bool destroyChildren(bool* callExtraFlag);
+            virtual bool containsChild(Controls::Control* target);
+            virtual int32_t setModalView(Base::View* view);
+            virtual void beginEdit(int parameterId);
+            virtual void endEdit(int parameterId);
+            virtual Controls::Control* getChildAtMousePos();
+            virtual void getLocalMousePos(POINT* mousePos);
+            virtual DropTarget* createDropTarget();
             static bool registerWindowClass();
-            void setBackgroundBitmap(Bitmap *background);
-            void resetVtable(Window* frame);
-            void cleanup();
-            bool closeWindow();
-            bool setDragAndDropState(bool enable);
-            void onMouseDown(GDIDrawingContext* drawingContext, POINT* mousePos);
-            bool routeMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, POINT* mousePos);
-            bool removeChild(Controls::Control* child, bool shouldRelease);
-            bool destroyChildren(bool* callExtraFlag);
-            bool containsChild(Controls::Control* target);
-            int32_t setModalView(Base::View* view);
-            void beginEdit(int parameterId);
-            void endEdit(int parameterId);
-            Controls::Control* getChildAtMousePos();
-            void getLocalMousePos(POINT* mousePos);
-            DropTarget* createDropTarget();
+            static void unregisterWindowClass();
     };
 }
 }

@@ -350,15 +350,6 @@ namespace Windows {
         // }
         // return;
     }
-
-    // STUB: DELAYLAMA 0x10008340
-    void GDIDrawingContext::unregisterClass() {
-        // g_RegistrationCount = g_RegistrationCount + -1;
-        // if (g_RegistrationCount == 0) {
-        //   UnregisterClassA((LPCSTR)&lpClassName_1000d80c,g_hInstance);
-        // }
-        // return;
-    }
 }
 }
 }

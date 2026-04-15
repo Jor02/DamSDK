@@ -36,20 +36,21 @@ namespace Base {
             virtual void onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* point);
             virtual bool onMouseWheel(Platform::Windows::GDIDrawingContext *drawingContext, POINT *relativeMousePoint, float scrollDelta);
             virtual void setEnabled(bool enabled);
+            virtual bool getEnabled();
+            virtual void setAbsRect(RECT* rect);
+            virtual void getRect(RECT* outRect);
+            virtual void setUseAlphaBlending(bool useAlphaBlending);
+            virtual bool getUseAlphaBlending();
+            virtual void setParent(Platform::Windows::Window* parent);
+            virtual void returnTrue1(Platform::Windows::Window *frame);
+            virtual void returnTrue2(Platform::Windows::Window *frame);
+            virtual int getReferenceCount();
+            virtual bool routeMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, POINT* mousePos);
+            virtual void setRect(RECT* rect);
+            virtual void release();
+            
             static void useBitmap(Platform::Windows::Bitmap *bmp);
-            bool getEnabled();
-            void setAbsRect(RECT* rect);
-            void getRect(RECT* outRect);
-            void setUseAlphaBlending(bool useAlphaBlending);
-            bool getUseAlphaBlending();
-            void setParent(Platform::Windows::Window* parent);
-            void returnTrue1(Platform::Windows::Window *frame);
-            void returnTrue2(Platform::Windows::Window *frame);
-            int getReferenceCount();
-            uint8_t GetPressedModifiersAndMouseButtons();
-            bool routeMessage();
-            void setRect(RECT* rect);
-            void release();
+            static uint8_t GetPressedModifiersAndMouseButtons();
 
     };
 }

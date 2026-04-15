@@ -53,6 +53,7 @@ namespace Controls {
             void changeBitmap(Platform::Windows::Bitmap* newBitmap);
             void clampValue();
             bool onMouseWheel(Platform::Windows::GDIDrawingContext* drawingContext, POINT* mousePos, float wheelDelta);
+            bool returnTrue(Platform::Windows::Window* window);
     };
 }
 }

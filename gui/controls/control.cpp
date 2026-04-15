@@ -117,10 +117,10 @@ namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10008d90
     bool Control::isDirty() {
-        if ((this->prevValue == this->value) &&
-           (this->_isDirty == false)) {
+        if ((this->prevValue == this->value) && (this->_isDirty == false)) {
           return false;
         }
+        return true;
     }
 
     // FUNCTION: DELAYLAMA 0x10008db0
@@ -184,6 +184,10 @@ namespace Controls {
         if (isDirty != false) {
             this->callback(drawingContext,this);
         }
+        return true;
+    }
+
+    bool Control::returnTrue(Platform::Windows::Window* window) {
         return true;
     }
 }

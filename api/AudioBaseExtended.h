@@ -19,7 +19,7 @@ namespace Api {
         // --- Editor & UI ---
         virtual EditorBase* getEditor();
         virtual int32_t openWindow(HWND windowHandle);
-        virtual bool closePluginEditorOnHost(HWND windowHandle);
+        virtual bool closePluginEditorOnHost(void* windowHandle);
         virtual bool requestHostEditorRefresh();
         virtual bool setViewPosition(int32_t x, int32_t y);
         virtual intptr_t getIcon();
