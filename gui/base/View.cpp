@@ -107,7 +107,7 @@ namespace Base {
     }
 
     // FUNCTION: DELAYLAMA 0x10006ec0
-    uint8_t View::GetPressedModifiersAndMouseButtons() {
+    uint32_t View::GetPressedModifiersAndMouseButtons() {
         SHORT keyState = GetAsyncKeyState(VK_LBUTTON);
         byte combinedMask = keyState < 0;
         keyState = GetAsyncKeyState(VK_MBUTTON);

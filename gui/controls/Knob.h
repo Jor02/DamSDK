@@ -9,7 +9,8 @@ namespace Controls {
     // VTABLE: DELAYLAMA 0x1000be60
     class Knob : public RotaryControl {
         public:
-            POINT origin;
+            int	totalFrames; // 0x8c
+            int	frameHeight; // 0x90
         public:
             Knob(RECT *pRect, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *bmp, POINT *origin);
             ~Knob();

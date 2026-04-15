@@ -50,7 +50,7 @@ namespace Base {
             virtual void release();
             
             static void useBitmap(Platform::Windows::Bitmap *bmp);
-            static uint8_t GetPressedModifiersAndMouseButtons();
+            static uint32_t GetPressedModifiersAndMouseButtons();
 
     };
 }

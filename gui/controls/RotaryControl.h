@@ -11,6 +11,7 @@ namespace Controls {
 
     // VTABLE: DELAYLAMA 0x1000be60
     class RotaryControl : public Control {
+        public:
             POINT srcPoint;
             Api::ColorRGBA indicatorHighlightColor;
             Api::ColorRGBA indicatorShadowColor;
@@ -23,6 +24,7 @@ namespace Controls {
             float angleOffset;
             float center;
             float fineTuneDivider;
+
         public:
             RotaryControl(RECT* pRect, callbackCallback callback, int parameterId, Platform::Windows::Bitmap* bmp1, Platform::Windows::Bitmap* bmp2, POINT* srcPoint);
             ~RotaryControl();

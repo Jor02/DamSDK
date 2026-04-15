@@ -1,6 +1,8 @@
 #pragma once
 #include <cmath>
 #include "RotaryControl.h"
+#include "damsdk/api/EditorBase.h"
+#include "damsdk/gui/platform/windows/Window.h"
 
 namespace DamSDK {
 namespace Gui {
@@ -49,48 +51,39 @@ namespace Controls {
         // return this;
     }
 
-    // STUB: DELAYLAMA 0x10008f60
+    // FUNCTION: DELAYLAMA 0x10008f60
     RotaryControl::~RotaryControl() {
-        // this->destroy();
-        // if (deleteObject) {
-        //   operator_delete(this);
-        // }
-        // return this;
+        this->destroy();
     }
 
-    // STUB: DELAYLAMA 0x10008f80
+    // FUNCTION: DELAYLAMA 0x10008f80
     void RotaryControl::destroy() {
-        // Bitmap *bmp;
-        //
-        // this->vtable = &RotaryControlVTable_1000bd78;
-        // bmp = this->bmp;
-        // if (bmp != (Bitmap *)0x0) {
-        //   Bitmap::unregisterBitmap(bmp);
-        // }
-        // Control::destroy((Control *)this);
-        // return;
+        Platform::Windows::Bitmap* bmp = this->bmp;
+        if (bmp != nullptr) {
+            Platform::Windows::Bitmap::unregisterBitmap(bmp);
+        }
+        Control::destroy();
     }
 
-    // STUB: DELAYLAMA 0x10008fe0
-    void RotaryControl::onDraw(Platform::Windows::GDIDrawingContext* drawingContext) {
-        // RECT *destRect;
-        // undefined4 *srcPoint;
-        // Bitmap *bitmap;
-        //
-        // bitmap = this->control.bitmap;
-        // if (bitmap != (Bitmap *)0x0) {
-        //   destRect = &this->control.viewMembers.rect;
-        //   srcPoint = &this->srcPoint;
-        //   if (this->control.viewMembers.useAlphaBlending == false) {
-        //     Bitmap::blit(bitmap,drawingContext,destRect,(POINT *)srcPoint);
-        //   }
-        //   else {
-        //     Bitmap::drawMasked(bitmap,drawingContext,destRect,(POINT *)srcPoint);
-        //   }
-        // }
-        // (*this->vtable->drawIndicator)(drawingContext);
-        // (*(this->vtable->control).view.setDirty)(0);
-        // return;
+    // FUNCTION: DELAYLAMA 0x10008fe0
+    void RotaryControl::onDraw(Platform::Windows::GDIDrawingContext *drawingContext)
+    {
+        Platform::Windows::Bitmap *bitmap = this->bitmap;
+        if (bitmap != nullptr)
+        {
+            RECT *destRect = &this->rect;
+            POINT *srcPoint = &this->srcPoint;
+            if (this->useAlphaBlending == false)
+            {
+                bitmap->blit(drawingContext, destRect, srcPoint);
+            }
+            else
+            {
+                bitmap->drawMasked(drawingContext, destRect, srcPoint);
+            }
+        }
+        this->drawIndicator(drawingContext);
+        this->setDirty(false);
     }
 
     // STUB: DELAYLAMA 0x10009030
@@ -106,11 +99,11 @@ namespace Controls {
         // sourceOffset.x = 0;
         // (*this->vtable->calculateXYFromValue)(&centerY);
         // knobBitmap = this->bmp;
-        //                   /* BITMAP RENDERING */
+        //                   // BITMAP RENDERING
         // if (knobBitmap != (Bitmap *)0x0) {
         //   destRect.left =
-        //        centerX + (this->control.viewMembers.rect.left - (int)knobBitmap->width / 2);
-        //   centerY = centerY + (this->control.viewMembers.rect.top - (int)knobBitmap->height / 2)
+        //        centerX + (this->rect.left - (int)knobBitmap->width / 2);
+        //   centerY = centerY + (this->rect.top - (int)knobBitmap->height / 2)
         //   ;
         //   destRect.bottom = centerY + knobBitmap->height;
         //   destRect.right = knobBitmap->width + destRect.left;
@@ -120,15 +113,15 @@ namespace Controls {
         //   Bitmap::drawMasked(knobBitmap,drawContext,&destRect,&sourceOffset);
         //   return;
         // }
-        //                   /* VECTOR RENDERING (Fallback) */
-        // sourceOffset.y = this->control.viewMembers.rect.top;
+        //                   // VECTOR RENDERING (Fallback)
+        // sourceOffset.y = this->rect.top;
         // sourceOffset.x =
-        //      (this->control.viewMembers.rect.right -
-        //      this->control.viewMembers.rect.left) / 2 + -1 +
-        //      this->control.viewMembers.rect.left;
+        //      (this->rect.right -
+        //      this->rect.left) / 2 + -1 +
+        //      this->rect.left;
         // centerY = centerY + sourceOffset.y;
         // sourceOffset.y =
-        //      (this->control.viewMembers.rect.bottom - sourceOffset.y) / 2 + sourceOffset.y;
+        //      (this->rect.bottom - sourceOffset.y) / 2 + sourceOffset.y;
         // GDIDrawingContext::setPenColor(drawContext,this->indicatorShadowColor);
         // GDIDrawingContext::moveToEx(drawContext,(POINT *)&stack0xffffffdc);
         // GDIDrawingContext::lineTo(drawContext,&sourceOffset);
@@ -141,150 +134,154 @@ namespace Controls {
         // return;
     }
 
-    // STUB: DELAYLAMA 0x10009190
-    void RotaryControl::onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* mousePos) {
-        // float fVar1;
-        // bool isDirty1;
-        // bool isDirty2;
-        // undefined3 _padding1;
-        // undefined3 _padding2;
-        // byte inputMask;
-        // int lastMouseX;
-        // float10 defaultVal;
-        // float stepSize;
-        // float defaultValue;
-        // float valueRange;
-        // float relativeY;
-        // float lastValue;
-        // int currentModifiers;
-        // float halfRange;
-        // LONG startMouseX;
-        // LONG startMouseY;
-        // bool isLinearMode;
-        // int mouseX;
-        // int rectTop;
-        // RotaryControlVTable *vtable;
+    // FUNCTION: DELAYLAMA 0x10009190
+    void RotaryControl::onMouseDown(Platform::Windows::GDIDrawingContext *drawingContext, POINT *mousePos)
+    {
+        uint32_t currentModifiers;
         //
-        // if (this->control.viewMembers.isEnabled == false) {
-        //   return;
-        // }
-        // inputMask = View::GetPressedModifiersAndMouseButtons();
-        // currentModifiers = CONCAT31(_padding1,inputMask);
-        //                   /* Exit if Left Click is not down */
-        // if ((inputMask & 1) == 0) {
-        //   return;
-        // }
-        //                   /* CTRL + Click: Reset to Default */
-        // if (currentModifiers == 0x11) {
-        //   defaultVal = (float10)(*(this->vtable->control).getDefaultValue)();
-        //   vtable = this->vtable;
-        //   this->control.value = (float)defaultVal;
-        //   isDirty1 = (bool)(*(vtable->control).view.isDirty)();
-        //   if (isDirty1 == false) {
-        //     return;
-        //   }
-        //   (*(code *)**(undefined4 **)this->control.callback)(drawingContext,this);
-        //   return;
-        // }
-        // valueRange = this->control.max - this->control.min;
-        // defaultValue = this->control.prevValue;
-        // lastValue = this->control.value;
-        // startMouseX = 0;
-        // startMouseY = 0;
-        // halfRange = valueRange * FLOAT_1000bb34;
-        // isLinearMode = false;
-        // stepSize = valueRange * _DAT_1000be4c;
-        // if (GLOBAL_KNOB_MODE == 2) {
-        //                   /* If Alt is held, use Radial/Angular mode */
-        //   if ((inputMask & 0x20) != 0) {
-        // LAB_RADIAL_MODE:
-        //     valueRange = (float)(mousePos->x - this->control.viewMembers.rect.left);
-        //     relativeY = (float)(mousePos->y - this->control.viewMembers.rect.top);
-        //     defaultVal = (float10)(*this->vtable->calculateAngleFromPoint)(&valueRange);
-        //     defaultValue = (float)defaultVal;
-        //     goto LAB_START_DRAG_LOOP;
-        //   }
-        // }
-        // else if ((inputMask & 0x20) == 0) goto LAB_RADIAL_MODE;
-        // stepSize = FLOAT_1000b8f8;
-        //                   /* Linear Mode Setup */
-        // if ((inputMask & 8) != 0) {
-        //                   /* Shift-key for fine-tuning */
-        //   stepSize = this->fineTuneDivider * FLOAT_1000b8f8;
-        // }
-        // stepSize = valueRange / stepSize;
-        // isLinearMode = true;
-        // startMouseX = mousePos->x;
-        // startMouseY = mousePos->y;
-        // LAB_START_DRAG_LOOP:
-        // lastMouseX = -1;
-        // relativeY = -NAN;
-        // Window::beginEdit(this->control.viewMembers.parent,this->control.parameterId);
-        // do {
-        //   inputMask = View::GetPressedModifiersAndMouseButtons();
-        //   mouseX = mousePos->x;
-        //   if ((mouseX != lastMouseX) || ((float)mousePos->y != relativeY)) {
-        //     relativeY = (float)mousePos->y;
-        //     lastMouseX = mousePos->x;
-        //     if (isLinearMode) {
-        //       mouseX = ((mouseX - mousePos->y) - startMouseX) + startMouseY;
-        //       if (CONCAT31(_padding2,inputMask) != currentModifiers) {
-        //         fVar1 = FLOAT_1000b8f8;
-        //         if ((inputMask & 8) != 0) {
-        //           fVar1 = this->fineTuneDivider * FLOAT_1000b8f8;
-        //         }
-        //         fVar1 = (this->control.max - this->control.min) / fVar1;
-        //         lastValue = (stepSize - fVar1) * (float)mouseX + lastValue;
-        //         stepSize = fVar1;
-        //         currentModifiers = CONCAT31(_padding2,inputMask);
-        //       }
-        //       vtable = this->vtable;
-        //       this->control.value = (float)mouseX * stepSize + lastValue;
-        //       (*(vtable->control).clampValue)();
-        //     }
-        //     else {
-        //       rectTop = this->control.viewMembers.rect.top;
-        //       mousePos->x = mouseX - this->control.viewMembers.rect.left;
-        //       mousePos->y = mousePos->y - rectTop;
-        //       defaultVal = (float10)(*this->vtable->calculateAngleFromPoint)(mousePos);
-        //       this->control.value = (float)defaultVal;
-        //       if ((float10)defaultValue - defaultVal <= (float10)halfRange) {
-        //         if (defaultVal - (float10)defaultValue <= (float10)halfRange) {
-        //           defaultValue = (float)defaultVal;
-        //         }
-        //         else {
-        //           this->control.value = this->control.min;
-        //         }
-        //       }
-        //       else {
-        //         this->control.value = this->control.max;
-        //       }
-        //     }
-        //     isDirty2 = (bool)(*(this->vtable->control).view.isDirty)();
-        //     if (isDirty2 != false) {
-        //       (*(code *)**(undefined4 **)this->control.callback)(drawingContext,this);
-        //     }
-        //   }
-        //   GDIDrawingContext::getRelativeMousePos(drawingContext,mousePos);
-        //   (*(this->vtable->control).onIdle)();
-        // } while ((inputMask & 1) != 0);
-        // Window::endEdit(this->control.viewMembers.parent,this->control.parameterId);
-        // return;
+        if (this->isEnabled == false)
+        {
+            return;
+        }
+
+        uint32_t lastModifiers = View::GetPressedModifiersAndMouseButtons();
+
+        // Left button not pressed
+        if ((lastModifiers & 1) == 0)
+        {
+            return;
+        }
+
+        // CTRL + Click: Reset to Default | 0x10 (Ctrl) | 0x01 (Left)
+        if (lastModifiers == 0x11)
+        {
+            float defaultVal = this->getDefaultValue();
+            this->value = defaultVal;
+            if (this->isDirty())
+            {
+                this->callback(drawingContext, this);
+            }
+            return;
+        }
+        
+        POINT valueRange;
+        POINT startMouse;
+        
+        valueRange.x = this->max - this->min;
+        float defaultVal = 0;
+        float defaultValue = this->prevValue;
+        float lastValue = this->value;
+        float halfRange = valueRange.x * 0.5f;
+        float stepSize = valueRange.x * 0.005f;
+        startMouse.x = 0;
+        startMouse.y = 0;
+        float relativeY = 0;
+        bool isLinearMode = false;
+        float sensitivity = 200.0f;
+        if (Api::GLOBAL_KNOB_MODE == 2)
+        {
+            // If Alt is held, use Radial/Angular mode
+            if ((lastModifiers & 0x20) != 0)
+            {
+            LAB_RADIAL_MODE:
+                valueRange.x = mousePos->x - this->rect.left;
+                valueRange.y = mousePos->y - this->rect.top;
+                defaultVal = this->calculateAngleFromPoint(&valueRange);
+                defaultValue = defaultVal;
+                goto LAB_START_DRAG_LOOP;
+            }
+        }
+        else if ((lastModifiers & 0x20) == 0)
+            goto LAB_RADIAL_MODE;
+
+        // Linear Mode Setup
+        if ((lastModifiers & 8) != 0)
+        {
+            // Shift-key for fine-tuning
+            sensitivity = this->fineTuneDivider * 200.0f;
+        }
+        stepSize = (float)valueRange.x / stepSize;
+        isLinearMode = true;
+        startMouse.x = mousePos->x;
+        startMouse.y = mousePos->y;
+    LAB_START_DRAG_LOOP:
+        int lastMouseX = -1;
+        valueRange.y = -1;
+        this->parent->beginEdit(this->parameterId);
+        do
+        {
+            currentModifiers = View::GetPressedModifiersAndMouseButtons();
+            float mouseX = mousePos->x;
+            if ((mouseX != lastMouseX) || (mousePos->y != valueRange.y))
+            {
+                valueRange.y = mousePos->y;
+                lastMouseX = mousePos->x;
+                if (isLinearMode)
+                {
+                    mouseX = ((mouseX - mousePos->y) - startMouse.x) + startMouse.y;
+                    if (currentModifiers != lastModifiers)
+                    {
+                        sensitivity = 200.0f;
+                        if ((currentModifiers & 8) != 0)
+                        {
+                            sensitivity = this->fineTuneDivider * 200.0f;
+                        }
+                        sensitivity = (this->max - this->min) / sensitivity;
+                        lastValue = (stepSize - sensitivity) * (float)mouseX + lastValue;
+                        stepSize = sensitivity;
+                        lastModifiers = currentModifiers;
+                    }
+                    this->value = (float)mouseX * stepSize + lastValue;
+                    this->clampValue();
+                }
+                else
+                {
+                    float rectTop = this->rect.top;
+                    mousePos->x = mouseX - this->rect.left;
+                    mousePos->y = mousePos->y - rectTop;
+                    defaultVal = this->calculateAngleFromPoint(mousePos);
+                    this->value = (float)defaultVal;
+                    if (defaultValue - defaultVal <= halfRange)
+                    {
+                        if (defaultVal - defaultValue <= halfRange)
+                        {
+                            defaultValue = (float)defaultVal;
+                        }
+                        else
+                        {
+                            this->value = this->min;
+                        }
+                    }
+                    else
+                    {
+                        this->value = this->max;
+                    }
+                }
+                bool isDirty2 = this->isDirty();
+                if (isDirty2 != false)
+                {
+                    this->callback(drawingContext, this);
+                }
+            }
+            drawingContext->getRelativeMousePos(mousePos);
+            this->onIdle();
+        } while ((lastModifiers & 1) != 0);
+        this->parent->endEdit(this->parameterId);
     }
 
-    // STUB: DELAYLAMA 0x10009470
+    // FUNCTION: DELAYLAMA 0x10009470
     void RotaryControl::setStartAngle(float startAngle) {
         this->startAngle = startAngle;
         updateMathConstants();
     }
 
-    // STUB: DELAYLAMA 0x10009480
+    // FUNCTION: DELAYLAMA 0x10009480
     void RotaryControl::setTotalRange(float totalRange) {
         this->totalRange = totalRange;
         updateMathConstants();
     }
 
-    // STUB: DELAYLAMA 0x10009490
+    // FUNCTION: DELAYLAMA 0x10009490
     void RotaryControl::updateMathConstants() {
         float valueWidth = (this->max - this->min) / this->totalRange;
         this->angleRange = valueWidth;
@@ -293,92 +290,97 @@ namespace Controls {
         this->setDirty(true);
     }
 
-    // STUB: DELAYLAMA 0x100094d0
+    // FUNCTION: DELAYLAMA 0x100094d0
     void RotaryControl::calculateXYFromValue(POINT* outPoint) {
-        // long normalizedValue;
-        // undefined4 unaff_ESI;
-        // undefined4 unaff_EDI;
-        // unkbyte10 extraout_ST0;
-        //
-        // fcos(((float10)this->control.value - (float10)(float)this->angleOffset) /
-        //      (float10)(float)this->angleRange);
-        // normalizedValue = _ftol((double)CONCAT44(unaff_ESI,unaff_EDI));
-        // fsin(extraout_ST0);
-        // outPoint->x = normalizedValue;
-        // normalizedValue = _ftol((double)CONCAT44(unaff_ESI,unaff_EDI));
-        // outPoint->y = normalizedValue;
-        // return;
+        float angle = (this->value - this->angleOffset) / this->angleRange;
+
+        float cosAngle = std::cos(angle);
+        float sinAngle = std::sin(angle);
+
+        int radius = static_cast<int>(this->knobRadius);
+
+        // X coordinate: center - radius * cos(angle) + 0.5f
+        float tempX = (this->center - static_cast<float>(radius) * cosAngle) + 0.5f;
+        outPoint->x = static_cast<LONG>(tempX);
+
+        // Y coordinate: center - radius * sin(angle) + 0.5f
+        float tempY = (this->center - static_cast<float>(radius) * sinAngle) + 0.5f;
+        outPoint->y = static_cast<LONG>(tempY);
     }
 
-    // STUB: DELAYLAMA 0x10009530
+    // FUNCTION: DELAYLAMA 0x10009530
     float RotaryControl::calculateAngleFromPoint(POINT* point) {
-        // float10 normalizedAngle;
-        // float10 rawAngle;
-        // float rangePlusDeadzone;
-        //
-        // rawAngle = (float10)fpatan((float10)this->center - (float10)point->y,
-        //                            (float10)point->x - (float10)this->center);
-        // if (rawAngle < (float10)FLOAT_1000b208) {
-        //   rawAngle = rawAngle + (float10)_DAT_1000be54;
-        // }
-        // rawAngle = rawAngle - (float10)this->startAngle;
-        // if (FLOAT_1000b208 <= this->totalRange) {
-        //   if ((float10)FLOAT_1000b208 <= rawAngle) {
-        //     normalizedAngle = rawAngle;
-        //     if ((float10)_DAT_1000be58 < rawAngle) {
-        //       normalizedAngle = rawAngle - (float10)_DAT_1000be54;
-        //     }
-        //   }
-        //   else {
-        //     normalizedAngle = rawAngle + (float10)_DAT_1000be54;
-        //   }
-        //   rangePlusDeadzone = this->totalRange + (float)this->deadZoneSize;
-        //   if ((float10)rangePlusDeadzone < normalizedAngle) {
-        //     return (float10)this->control.min;
-        //   }
-        //   if ((float10)this->totalRange < normalizedAngle) {
-        //     return (float10)this->control.max;
-        //   }
-        //   if ((float10)rangePlusDeadzone < rawAngle) {
-        //     return (rawAngle - (float10)_DAT_1000be54) * (float10)(float)this->angleRange +
-        //            (float10)this->control.min;
-        //   }
-        //   if (rawAngle < -(float10)(float)this->deadZoneSize) {
-        //     rawAngle = rawAngle + (float10)_DAT_1000be54;
-        //   }
-        //   return rawAngle * (float10)(float)this->angleRange +
-        //          (float10)this->control.min;
-        // }
-        // rawAngle = rawAngle - (float10)this->totalRange;
-        // if ((float10)FLOAT_1000b208 <= rawAngle) {
-        //   normalizedAngle = rawAngle;
-        //   if ((float10)_DAT_1000be58 < rawAngle) {
-        //     normalizedAngle = rawAngle - (float10)_DAT_1000be54;
-        //   }
-        // }
-        // else {
-        //   normalizedAngle = rawAngle + (float10)_DAT_1000be54;
-        // }
-        // rangePlusDeadzone = (float)this->deadZoneSize - this->totalRange;
-        // if ((float10)rangePlusDeadzone < normalizedAngle) {
-        //   return (float10)this->control.max;
-        // }
-        // if (-(float10)this->totalRange < normalizedAngle) {
-        //   return (float10)this->control.min;
-        // }
-        // if ((float10)rangePlusDeadzone < rawAngle) {
-        //   return (rawAngle - (float10)_DAT_1000be54) * (float10)(float)this->angleRange +
-        //          (float10)this->control.max;
-        // }
-        // if (rawAngle < -(float10)(float)this->deadZoneSize) {
-        //   rawAngle = rawAngle + (float10)_DAT_1000be54;
-        // }
-        // return rawAngle * (float10)(float)this->angleRange +
-        //        (float10)this->control.max;
-        return 0.0f;
+
+        float rawAngle = atan2(this->center - point->y, point->x - this->center);
+        if (rawAngle < 0.0f) {
+            rawAngle = rawAngle + 6.2831855f;
+        }
+        
+        rawAngle = rawAngle - this->startAngle;
+        float normalizedAngle;
+        float rangePlusDeadzone;
+        if (0.0f <= this->totalRange) {
+            if (0.0f <= rawAngle) {
+            normalizedAngle = rawAngle;
+            if (6.283185307179586f < rawAngle) {
+                normalizedAngle = rawAngle - 6.2831855f;
+            }
+            }
+            else {
+                normalizedAngle = rawAngle + 6.2831855f;
+            }
+
+            rangePlusDeadzone = this->totalRange + this->deadZoneSize;
+            if (rangePlusDeadzone < normalizedAngle) {
+                return this->min;
+            }
+            if (this->totalRange < normalizedAngle) {
+                return this->max;
+            }
+            if (rangePlusDeadzone < rawAngle) {
+                return (rawAngle - 6.2831855f) * (float)this->angleRange + this->min;
+            }
+            if (rawAngle < -(float)this->deadZoneSize) {
+                rawAngle = rawAngle + 6.2831855f;
+            }
+
+            return rawAngle * (float)this->angleRange + this->min;
+        }
+
+        rawAngle = rawAngle - this->totalRange;
+        if (0.0f <= rawAngle) {
+            normalizedAngle = rawAngle;
+            if (6.283185307179586f < rawAngle) {
+                normalizedAngle = rawAngle - 6.2831855f;
+            }
+        }
+        else {
+            normalizedAngle = rawAngle + 6.2831855f;
+        }
+
+        rangePlusDeadzone = this->deadZoneSize - this->totalRange;
+
+        if (rangePlusDeadzone < normalizedAngle) {
+            return this->max;
+        }
+
+        if (-this->totalRange < normalizedAngle) {
+            return this->min;
+        }
+
+        if (rangePlusDeadzone < rawAngle) {
+            return (rawAngle - 6.2831855f) * (float)this->angleRange +
+                this->max;
+        }
+
+        if (rawAngle < -this->deadZoneSize) {
+            rawAngle = rawAngle + 6.2831855f;
+        }
+
+        return rawAngle * this->angleRange + this->max;
     }
 
-    // STUB: DELAYLAMA 0x100096c0
+    // FUNCTION: DELAYLAMA 0x100096c0
     void RotaryControl::setIndicatorShadowColor(Api::ColorRGBA color) {
         this->indicatorShadowColor.bytes.r = color.bytes.r;
         this->indicatorShadowColor.bytes.g = color.bytes.g;
@@ -387,7 +389,7 @@ namespace Controls {
         this->setDirty(true);
     }
 
-    // STUB: DELAYLAMA 0x100096f0
+    // FUNCTION: DELAYLAMA 0x100096f0
     void RotaryControl::setIndicatorHighlightColor(Api::ColorRGBA color) {
         this->indicatorHighlightColor.bytes.r = color.bytes.r;
         this->indicatorHighlightColor.bytes.g = color.bytes.g;
@@ -396,48 +398,43 @@ namespace Controls {
         this->setDirty(true);
     }
 
-    // STUB: DELAYLAMA 0x10009720
+    // FUNCTION: DELAYLAMA 0x10009720
     void RotaryControl::setBitmap(Platform::Windows::Bitmap* bmp) {
-        // float knobRadius;
-        // undefined4 unaff_ESI;
-        // undefined4 unaff_retaddr;
-        // Bitmap *oldBitmap;
-        //
-        // oldBitmap = this->bmp;
-        // if (oldBitmap != (Bitmap *)0x0) {
-        //   Bitmap::unregisterBitmap(oldBitmap);
-        //   this->bmp = (Bitmap *)0x0;
-        // }
-        // if (bmp != (Bitmap *)0x0) {
-        //   this->bmp = bmp;
-        //   View::useBitmap(bmp);
-        //   knobRadius = (float)_ftol((double)CONCAT44(unaff_retaddr,unaff_ESI));
-        //   this->knobRadius = knobRadius;
-        // }
-        // return;
+        Platform::Windows::Bitmap* oldBitmap = this->bmp;
+        if (oldBitmap != nullptr) {
+            Platform::Windows::Bitmap::unregisterBitmap(oldBitmap);
+            this->bmp = nullptr;
+        }
+        if (bmp != nullptr) {
+            this->bmp = bmp;
+            View::useBitmap(bmp);
+            int bitmapWidth = bmp->width;
+            int knobRadius = static_cast<int>(static_cast<float>(bitmapWidth) * 0.5f + 2.5f);
+            this->knobRadius = knobRadius;
+        }
     }
 
-    // STUB: DELAYLAMA 0x10009770
+    // FUNCTION: DELAYLAMA 0x10009770
     float RotaryControl::getStartAngle() {
         return this->startAngle;
     }
 
-    // STUB: DELAYLAMA 0x10009780
+    // FUNCTION: DELAYLAMA 0x10009780
     float RotaryControl::getTotalRange() {
         return this->totalRange;
     }
 
-    // STUB: DELAYLAMA 0x10009790
+    // FUNCTION: DELAYLAMA 0x10009790
     void RotaryControl::setKnobRadius(float radius) {
         this->knobRadius = radius;
     }
 
-    // STUB: DELAYLAMA 0x100097a0
+    // FUNCTION: DELAYLAMA 0x100097a0
     void RotaryControl::setFineTuneDivider(float divider) {
         this->fineTuneDivider = divider;
     }
 
-    // STUB: DELAYLAMA 0x100097b0
+    // FUNCTION: DELAYLAMA 0x100097b0
     float RotaryControl::getFineTuneDivider() {
         return this->fineTuneDivider;
     }
