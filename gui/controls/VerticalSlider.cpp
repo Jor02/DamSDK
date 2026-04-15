@@ -9,7 +9,7 @@ namespace Gui {
 namespace Controls {
 
     // STUB: DELAYLAMA 0x10009a40
-    VerticalSlider::VerticalSlider(RECT *pRect, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handleBmp, Platform::Windows::Bitmap *backgroundBmp, POINT* offset, int flags) : Control(pRect, callback, parameterId, handleBmp)
+    VerticalSlider::VerticalSlider(RECT *pRect, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handleBmp, Platform::Windows::Bitmap *backgroundBmp, POINT* offset, int flags) : Control(pRect, callback, parameterId, backgroundBmp)
     {
         this->backgroundOffset.x = offset->x;
         this->backgroundOffset.y = offset->y;
@@ -75,7 +75,7 @@ namespace Controls {
         }
 
         int valueRange = this->trackMaxY - this->trackMinY;
-        int handleOffset = static_cast<int>(this->fineTuneDivider * valueRange);
+        int handleOffset = static_cast<int>(this->value * valueRange);
         int handleY = this->handlePos.y + handleOffset;
 
         if (handleY < this->handleMinPos) handleY = this->handleMinPos;

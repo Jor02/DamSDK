@@ -93,14 +93,10 @@ namespace Windows {
         }
     }
 
-    // STUB: DELAYLAMA 0x10006af0
+    // FUNCTION: DELAYLAMA 0x10006af0
     GDIDrawingContext::~GDIDrawingContext()
     {
-        // cleanResources(this);
-        // if (deleteObject) {
-        //   operator_delete(this);
-        // }
-        // return this;
+        this->cleanResources();
     }
     
     // FUNCTION: DELAYLAMA 0x10006da0
@@ -201,113 +197,95 @@ namespace Windows {
         return 1;
     }
 
-    // STUB: DELAYLAMA 0x10006b10
+    // FUNCTION: DELAYLAMA 0x10006b10
     void GDIDrawingContext::cleanResources() {
-        // HGDIOBJ pvVar1;
-        //
-        // pvVar1 = this->originalPen;
-        // this->vtable = &GDIDrawingContextVtable_1000bbe4;
-        // if (pvVar1 != (HGDIOBJ)0x0) {
-        //   SelectObject(this->hDC,pvVar1);
-        // }
-        // pvVar1 = this->OriginalBrush;
-        // if (pvVar1 != (HGDIOBJ)0x0) {
-        //   SelectObject(this->hDC,pvVar1);
-        // }
-        // pvVar1 = this->OriginalFont;
-        // if (pvVar1 != (HGDIOBJ)0x0) {
-        //   SelectObject(this->hDC,pvVar1);
-        // }
-        // pvVar1 = this->obj1;
-        // if (pvVar1 != (HGDIOBJ)0x0) {
-        //   DeleteObject(pvVar1);
-        // }
-        // pvVar1 = this->obj2;
-        // if (pvVar1 != (HGDIOBJ)0x0) {
-        //   DeleteObject(pvVar1);
-        // }
-        // pvVar1 = this->obj3;
-        // if (pvVar1 != (HGDIOBJ)0x0) {
-        //   DeleteObject(pvVar1);
-        // }
-        // return;
+        HGDIOBJ pvVar1 = this->originalPen;
+        
+        if (pvVar1 != nullptr) {
+          SelectObject(this->hDC,pvVar1);
+        }
+
+        pvVar1 = this->OriginalBrush;
+        if (pvVar1 != nullptr) {
+          SelectObject(this->hDC,pvVar1);
+        }
+
+        pvVar1 = this->OriginalFont;
+        if (pvVar1 != nullptr) {
+          SelectObject(this->hDC,pvVar1);
+        }
+
+        pvVar1 = this->obj1;
+        if (pvVar1 != nullptr) {
+          DeleteObject(pvVar1);
+        }
+
+        pvVar1 = this->obj2;
+        if (pvVar1 != nullptr) {
+          DeleteObject(pvVar1);
+        }
+
+        pvVar1 = this->obj3;
+        if (pvVar1 != nullptr) {
+          DeleteObject(pvVar1);
+        }
     }
 
-    // STUB: DELAYLAMA 0x10006b80
+    // FUNCTION: DELAYLAMA 0x10006b80
     void GDIDrawingContext::moveToEx(POINT* target) {
-        // MoveToEx(this->hDC,target->x + this->drawOffset.x,
-        //          target->y + this->drawOffset.y,(LPPOINT)0x0);
-        // return;
+        MoveToEx(this->hDC,target->x + this->drawOffset.x, target->y + this->drawOffset.y, nullptr);
     }
 
-    // STUB: DELAYLAMA 0x10006bb0
-    void GDIDrawingContext::lineTo(POINT* tageet) {
-        // LineTo(this->hDC,tageet->x + this->drawOffset.x,
-        //        tageet->y + this->drawOffset.y);
-        // return;
+    // FUNCTION: DELAYLAMA 0x10006bb0
+    void GDIDrawingContext::lineTo(POINT* target) {
+        LineTo(this->hDC,target->x + this->drawOffset.x, target->y + this->drawOffset.y);
     }
 
-    // STUB: DELAYLAMA 0x10006c60
+    // FUNCTION: DELAYLAMA 0x10006c60
     void GDIDrawingContext::drawRectangleOutline(RECT* param_1) {
-        // int bottom;
-        // int top;
-        // int right;
-        // int left;
-        //
-        // top = this->drawOffset.y;
-        // right = this->drawOffset.x;
-        // bottom = param_1->bottom + top;
-        // top = param_1->top + top;
-        // left = param_1->left + right;
-        // right = param_1->right + right;
-        // MoveToEx(this->hDC,left,top,(LPPOINT)0x0);
-        // LineTo(this->hDC,right,top);
-        // LineTo(this->hDC,right,bottom);
-        // LineTo(this->hDC,left,bottom);
-        // LineTo(this->hDC,left,top);
-        // return;
+        int top = this->drawOffset.y;
+        int right = this->drawOffset.x;
+        int bottom = param_1->bottom + top;
+        int left = param_1->left + right;
+        top = param_1->top + top;
+        right = param_1->right + right;
+        MoveToEx(this->hDC,left,top, nullptr);
+        LineTo(this->hDC,right,top);
+        LineTo(this->hDC,right,bottom);
+        LineTo(this->hDC,left,bottom);
+        LineTo(this->hDC,left,top);
     }
 
-    // STUB: DELAYLAMA 0x10006ce0
+    // FUNCTION: DELAYLAMA 0x10006ce0
     void GDIDrawingContext::fillRectangleInset(RECT* param_1) {
-        // HGDIOBJ pvVar1;
-        // RECT rect;
-        // int xOffset;
-        // int yOffset;
-        //
-        // xOffset = this->drawOffset.x;
-        // yOffset = this->drawOffset.y;
-        // rect.right = param_1->right + xOffset;
-        // rect.bottom = param_1->bottom + yOffset;
-        // rect.left = param_1->left + xOffset + 1;
-        // rect.top = param_1->top + yOffset + 1;
-        // pvVar1 = GetStockObject(8);
-        // pvVar1 = SelectObject(this->hDC,pvVar1);
-        // FillRect(this->hDC,&rect,this->obj1);
-        // SelectObject(this->hDC,pvVar1);
-        // return;
+        int xOffset = this->drawOffset.x;
+        int yOffset = this->drawOffset.y;
+        rect.right = param_1->right + xOffset;
+        rect.bottom = param_1->bottom + yOffset;
+        rect.left = param_1->left + xOffset + 1;
+        rect.top = param_1->top + yOffset + 1;
+        HGDIOBJ pvVar1 = GetStockObject(8);
+        pvVar1 = SelectObject(this->hDC,pvVar1);
+        FillRect(this->hDC,&rect,this->obj1);
+        SelectObject(this->hDC,pvVar1);
     }
 
-    // STUB: DELAYLAMA 0x10006f20
+    // FUNCTION: DELAYLAMA 0x10006f20
     void GDIDrawingContext::getRelativeMousePos(POINT* outRelMousePos) {
-        // tagPOINT mousePos;
-        // int yPos;
-        //
-        // GetCursorPos(&mousePos);
-        // outRelMousePos->x = mousePos.x;
-        // outRelMousePos->y = mousePos.y;
-        // yPos = this->screenPos.y;
-        // outRelMousePos->x = mousePos.x - this->screenPos.x;
-        // outRelMousePos->y = mousePos.y - yPos;
-        // return;
+
+        POINT mousePos;
+        GetCursorPos(&mousePos);
+        outRelMousePos->x = mousePos.x;
+        outRelMousePos->y = mousePos.y;
+        int yPos = this->screenPos.y;
+        outRelMousePos->x = mousePos.x - this->screenPos.x;
+        outRelMousePos->y = mousePos.y - yPos;
+        return;
     }
 
-    // STUB: DELAYLAMA 0x100070f0
+    // FUNCTION: DELAYLAMA 0x100070f0
     void GDIDrawingContext::copyToScreen(GDIDrawingContext* dest, int dstLeft, int dstTop, int dstRight, int dstBottom, int srcX, int srcY) {
-        // BitBlt((dest->members).hDC,(dest->members).drawOffset.x + dstLeft,
-        //        (dest->members).drawOffset.y + dstTop,dstRight - dstLeft,dstBottom - dstTop,
-        //        this->hDC,srcX,srcY,0xcc0020);
-        // return;
+        BitBlt(dest->hDC,dest->drawOffset.x + dstLeft, dest->drawOffset.y + dstTop,dstRight - dstLeft,dstBottom - dstTop, this->hDC,srcX,srcY,SRCCOPY);
     }
 
     // STUB: DELAYLAMA 0x10007d30

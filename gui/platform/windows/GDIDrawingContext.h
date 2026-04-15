@@ -38,9 +38,9 @@ namespace Windows {
             bool penDashEnabled;
             char unused3[4];
             RECT rect;
-            HGDIOBJ obj1;
-            HGDIOBJ obj2;
-            HGDIOBJ obj3;
+            HBRUSH obj1;
+            HPEN obj2;
+            HBRUSH obj3;
             HGDIOBJ originalPen;
             HGDIOBJ OriginalBrush;
             HGDIOBJ OriginalFont;

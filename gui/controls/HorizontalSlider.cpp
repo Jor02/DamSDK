@@ -107,10 +107,14 @@ namespace Controls {
             Platform::Windows::DAT_BACK_COLOR
         );
 
-        RECT trackRect = { 0, 0, this->trackWidth, this->trackHeight };
-        Platform::Windows::Bitmap* trackBitmap = this->bitmap;
-
+        RECT trackRect;
+        trackRect.left = 0;
+        trackRect.top = 0;
+        trackRect.right = this->trackWidth;
+        trackRect.bottom = this->trackHeight;
+        
         // Draw the track background if a bitmap is provided.
+        Platform::Windows::Bitmap* trackBitmap = this->bitmap;
         if (trackBitmap != nullptr) {
             POINT srcOffset = this->backgroundOffset;
             if (!this->useAlphaBlending) {
@@ -122,8 +126,8 @@ namespace Controls {
 
         // Compute the handle's horizontal position based on the current normalized value.
         int valueRange = this->trackMaxX - this->trackMinX;
-        int handleOffset = static_cast<int>(this->fineTuneDivider * valueRange);
-        int handleX = this->handlePos.x + handleOffset;
+        int handleOffset = static_cast<int>(this->value * valueRange);
+        int handleX = this->trackMinX + handleOffset;
 
         // Clamp to allowed range.
         if (handleX < this->handleMinPos) handleX = this->handleMinPos;
@@ -139,7 +143,10 @@ namespace Controls {
         // Draw the handle image.
         Platform::Windows::Bitmap* handleImage = this->handleImage;
         if (handleImage != nullptr) {
-            POINT srcPoint = { 0, 0 };  // drawn from top‑left of the handle bitmap
+            POINT srcPoint;  // drawn from top‑left of the handle bitmap
+            srcPoint.x = 0;
+            srcPoint.y = 0;
+
             if (!this->isHandleTransparent) {
                 handleImage->blit(offscreenContext, &handleRect, &srcPoint);
             } else {
