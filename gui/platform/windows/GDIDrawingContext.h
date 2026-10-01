@@ -2,11 +2,15 @@
 #include <Windows.h>
 #include <windef.h>
 #include <damsdk/utils/portable_stdint.h>
+#include <damsdk/api/DamPlugin.h>
+#include <damsdk/gui/MouseButtons.h>
 
 namespace DamSDK {
     namespace Gui {
         namespace Platform {
-            namespace Windows { class Window; }
+            namespace Windows {
+                class Window;
+            }
         }
     }
 }
@@ -18,9 +22,20 @@ namespace Windows {
 
     extern HINSTANCE g_hInstance;
 
-    extern COLORREF DAT_FOREGROUND_COLOR;
-    extern COLORREF DAT_GRAY_COLOR;
-    extern COLORREF DAT_BACK_COLOR;
+    // VSTGUI's CRect and CPoint, used where the original passes them by value.
+    // The copy constructor is a real function in the original (not inlined).
+    struct Rect : RECT {
+        Rect(const RECT& rect);
+    };
+
+    struct Point : POINT {
+        Point(long x, long y) { this->x = x; this->y = y; }
+    };
+
+    extern Api::Color kWhiteColor;
+    extern Api::Color kGreyColor;
+    extern Api::Color kBlackColor;
+    extern Api::Color kTransparentColor;
 
     // VTABLE: DELAYLAMA 0x1000bbe4
     class GDIDrawingContext {
@@ -31,12 +46,12 @@ namespace Windows {
             HWND hWnd;
             void*	parentFrame;
             char unused1[8];
-            COLORREF textColor;
+            Api::Color textColor;
             char unused2[8];
             LONG penWidth;
-            COLORREF penColor;
-            COLORREF backgroundColor;
-            bool penDashEnabled;
+            Api::Color penColor;
+            Api::Color backgroundColor;
+            int32_t lineStyle;
             char unused3[4];
             RECT rect;
             HBRUSH obj1;
@@ -49,20 +64,19 @@ namespace Windows {
 
         public:
             GDIDrawingContext(Window *parentFramePtr,HDC hDC,HWND hWnd);
-            ~GDIDrawingContext();
+            virtual ~GDIDrawingContext();
             static int32_t setModuleHandle(HINSTANCE hInstance);
-            virtual void setPenColor(COLORREF color);
-            virtual void setPenDashMode(bool penDashEnabled);
-            virtual void setBackgroundColorAndBrush(COLORREF color);
-            virtual void setTextColor(COLORREF color);
-            virtual void cleanResources();
-            virtual void moveToEx(POINT* target);
-            virtual void lineTo(POINT* tageet);
-            virtual void drawRectangleOutline(RECT* param_1);
-            virtual void fillRectangleInset(RECT* param_1);
-            virtual void getRelativeMousePos(POINT* outRelMousePos);
-            virtual void copyToScreen(GDIDrawingContext* dest, int dstLeft, int dstTop, int dstRight, int dstBottom, int srcX, int srcY);
-            static void setCursor(int cursorType);
+            void setPenColor(Api::Color color);
+            void setPenDashMode(int32_t lineStyle);
+            void setBackgroundColorAndBrush(Api::Color color);
+            void setTextColor(Api::Color color);
+            void moveToEx(POINT* target);
+            void lineTo(POINT* tageet);
+            void drawRectangleOutline(RECT* rect);
+            void fillRectangleInset(RECT* rect);
+            void getRelativeMousePos(POINT* outRelMousePos);
+            void copyToScreen(GDIDrawingContext* dest, Rect destRect, Point srcOffset);
+            uint32_t getMouseButtons();
     };
 }
 }

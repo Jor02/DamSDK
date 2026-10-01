@@ -9,7 +9,7 @@ namespace Gui {
 namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10009a40
-    VerticalSlider::VerticalSlider(RECT *pRect, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handleBmp, Platform::Windows::Bitmap *backgroundBmp, POINT* offset, int flags) : Control(pRect, callback, parameterId, backgroundBmp)
+    VerticalSlider::VerticalSlider(RECT *pRect, ControlListener* listener, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handleBmp, Platform::Windows::Bitmap *backgroundBmp, POINT* offset, int flags) : Control(pRect, listener, parameterId, backgroundBmp)
     {
         this->backgroundOffset.x = offset->x;
         this->backgroundOffset.y = offset->y;
@@ -26,7 +26,7 @@ namespace Controls {
             this->handleHeight = 1;
         }
         else {
-            View::useBitmap(handleBmp);
+            handleBmp->remember();
             this->handleWidth = this->handleImage->width;
             this->handleHeight = this->handleImage->height;
         }
@@ -40,162 +40,132 @@ namespace Controls {
         this->handleMaxPos = (this->handleHeight - this->rect.top) + maxValue;
     }
 
-    // FUNCTION: DELAYLAMA 0x10009bd0
-    VerticalSlider::~VerticalSlider() {
-        this->destroy();
-    }
-
     // FUNCTION: DELAYLAMA 0x10009bf0
-    void VerticalSlider::destroy() {
+    VerticalSlider::~VerticalSlider() {
         if (this->handleImage != nullptr) {
-          Platform::Windows::Bitmap::unregisterBitmap(this->handleImage);
+          this->handleImage->unregisterBitmap();
         }
-        Control::destroy();
     }
 
      // FUNCTION: DELAYLAMA 0x10009c50
      void VerticalSlider::onDraw(Platform::Windows::GDIDrawingContext* drawingContext) {
-         // Early out if no bitmaps to draw - prevents black square from being rendered
-         if (this->bitmap == nullptr && this->handleImage == nullptr) {
-             return;
-         }
-         
-         // Check for flags & 0x20 to determine if value should be inverted (for pitch control)
-         float valueToUse = this->value;
-         if ((this->flags & 0x20) == 0) {
-             valueToUse = 1.0f - valueToUse;
-         }
-         
-         Platform::Windows::OffscreenGDIDrawingContext* offscreenContext = new Platform::Windows::OffscreenGDIDrawingContext(
-             this->parent,
-             this->trackWidth,
-             this->trackHeight,
-             Platform::Windows::DAT_BACK_COLOR
-         );
+        // Same steps as VSTGUI's CSlider::draw, always through an offscreen context.
+        float value;
+        if (this->flags & 0x20)
+            value = this->value;
+        else
+            value = 1.0f - this->value;
 
-         RECT trackRect = { 0, 0, this->trackWidth, this->trackHeight };
-         Platform::Windows::Bitmap* trackBitmap = this->bitmap;
+        Platform::Windows::OffscreenGDIDrawingContext* offscreen =
+            new Platform::Windows::OffscreenGDIDrawingContext(this->parent, this->trackWidth, this->trackHeight, Platform::Windows::kBlackColor);
 
-        if (trackBitmap != nullptr) {
-            POINT srcOffset = this->backgroundOffset;
-            if (!this->useAlphaBlending) {
-                trackBitmap->blit(offscreenContext, &trackRect, &srcOffset);
-            } else {
-                trackBitmap->drawMasked(offscreenContext, &trackRect, &srcOffset);
-            }
+        // Background
+        RECT rect = {0, 0, this->trackWidth, this->trackHeight};
+        if (this->bitmap) {
+            if (this->useAlphaBlending)
+                this->bitmap->drawMasked(offscreen, &rect, &this->backgroundOffset);
+            else
+                this->bitmap->blit(offscreen, &rect, &this->backgroundOffset);
         }
 
-        int valueRange = this->trackMaxY - this->trackMinY;
-        int handleOffset = static_cast<int>(valueToUse * valueRange);
-        int handleY = this->handlePos.y + handleOffset;
-
-        if (handleY < this->handleMinPos) handleY = this->handleMinPos;
-        int handleBottom = handleY + this->handleHeight;
-        if (handleBottom > this->handleMaxPos) handleBottom = this->handleMaxPos;
-
+        // Handle position
         RECT handleRect;
-        handleRect.left   = this->handlePos.x;
-        handleRect.top    = handleY;
-        handleRect.right  = this->handlePos.x + this->handleWidth;
-        handleRect.bottom = handleBottom;
+        handleRect.left = this->handlePos.x;
+        handleRect.right = handleRect.left + this->handleWidth;
+        handleRect.top = this->handlePos.y + (int)(value * (this->trackMaxY - this->trackMinY));
+        if (handleRect.top < this->handleMinPos)
+            handleRect.top = this->handleMinPos;
+        handleRect.bottom = handleRect.top + this->handleHeight;
+        if (handleRect.bottom > this->handleMaxPos)
+            handleRect.bottom = this->handleMaxPos;
 
-        Platform::Windows::Bitmap* handleImage = this->handleImage;
-        if (handleImage != nullptr) {
-            POINT srcPoint = { 0, 0 };
-            if (!this->isHandleTransparent) {
-                handleImage->blit(offscreenContext, &handleRect, &srcPoint);
-            } else {
-                handleImage->drawMasked(offscreenContext, &handleRect, &srcPoint);
+        if (this->handleImage) {
+            if (this->isHandleTransparent) {
+                POINT zero = {0, 0};
+                this->handleImage->drawMasked(offscreen, &handleRect, &zero);
+            }
+            else {
+                POINT zero = {0, 0};
+                this->handleImage->blit(offscreen, &handleRect, &zero);
             }
         }
 
-        RECT destRect = this->rect;
-        offscreenContext->copyToScreen(drawingContext, destRect.left, destRect.top, destRect.right, destRect.bottom, 0, 0);
+        offscreen->copyToScreen(drawingContext, this->rect, Platform::Windows::Point(0, 0));
+        delete offscreen;
 
-        delete offscreenContext;
-
-        this->trackTopY = destRect.top + handleRect.top;
-        this->setDirty(true);
+        this->trackTopY = this->rect.top + handleRect.top;
+        this->setDirty(false);
     }
 
     // FUNCTION: DELAYLAMA 0x10009e10
-    void VerticalSlider::onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* relativeMousePos) {
-        if (this->isEnabled != false) {
+    void VerticalSlider::onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* mousePos) {
+        // Same steps as VSTGUI's CSlider::mouse
+        if (!this->isEnabled)
+            return;
 
-            uint8_t modifiers = View::GetPressedModifiersAndMouseButtons();
+        uint32_t button = drawingContext->getMouseButtons();
 
-            // Ctrl + Left Click -> Reset
-            if (modifiers == 0x11) { 
-                this->value = this->getDefaultValue();
-                if (this->isDirty()) {
-                    this->callback(drawingContext, this);
-                }
-                return;
-            }
-
-            // Left Click dragging
-            if ((modifiers & 0x01) != 0) {
-                int verticalAnchor;
-                
-                int trackMinY = this->trackMinY;
-                int trackMaxY = this->trackMaxY;
-
-                if (!this->snapToMouse) {
-                    trackMaxY = this->rect.left;
-                    trackTopY = this->trackTopY;
-                    if (relativeMousePos->x < trackMaxY) {
-                        return;
-                    }
-                    if (this->handleWidth + trackMaxY < relativeMousePos->x) {
-                        return;
-                    }
-                    verticalAnchor = relativeMousePos->y;
-                    if (verticalAnchor < trackTopY) {
-                        return;
-                    }
-                    if (this->handleHeight + trackTopY < verticalAnchor) {
-                        return;
-                    }
-                    verticalAnchor -= trackTopY;
-                } else {
-                    verticalAnchor = (this->handleHeight / 2) - 1;
-                }
-
-                verticalAnchor += trackMinY;
-                
-                float previousValue = this->value;
-                this->parent->beginEdit(this->parameterId);
-
-                while ((modifiers & 0x01) != 0) {
-                    float calculatedValue = (float)(relativeMousePos->y - verticalAnchor) / (float)(trackMaxY - trackMinY);
-                    
-                    // Reverse if flag 0x40 is set (for vertical slider pitch control)
-                    if ((this->flags & 0x40) != 0) {
-                        calculatedValue = 1.0f - calculatedValue;
-                    }
-
-                    // Fine-tuning logic (usually Shift key = 0x08)
-                    if ((modifiers & 0x08) != 0) {
-                        this->value = ((calculatedValue - previousValue) / this->fineTuneDivider) + previousValue;
-                    } else {
-                        this->value = calculatedValue;
-                        previousValue = calculatedValue;
-                    }
-
-                    this->clampValue();
-
-                    if (this->isDirty()) {
-                        this->callback(drawingContext, this);
-                    }
-
-                    drawingContext->getRelativeMousePos(relativeMousePos);
-                    this->onIdle();
-                    modifiers = View::GetPressedModifiersAndMouseButtons();
-                }
-
-                this->parent->endEdit(this->parameterId);
-            }
+        // Ctrl + click: reset to the default value
+        if (button == (kLButton | kControl)) {
+            this->value = this->getDefaultValue();
+            if (this->isDirty())
+                this->listener->valueChanged(drawingContext, this);
+            return;
         }
+
+        // Left button only
+        if (!(button & kLButton))
+            return;
+
+        int delta = this->trackMinY;
+        if (!this->snapToMouse) {
+            // The click must be on the handle
+            RECT handleRect;
+            handleRect.left = this->rect.left;
+            handleRect.top = this->trackTopY;
+            handleRect.right = handleRect.left + this->handleWidth;
+            handleRect.bottom = handleRect.top + this->handleHeight;
+            if (mousePos->x < handleRect.left || mousePos->x > handleRect.right ||
+                mousePos->y < handleRect.top || mousePos->y > handleRect.bottom)
+                return;
+            delta += mousePos->y - handleRect.top;
+        }
+        else {
+            delta += this->handleHeight / 2 - 1;
+        }
+
+        float range = (float)(this->trackMaxY - this->trackMinY);
+        float oldValue = this->value;
+        uint32_t oldButton = button;
+
+        this->parent->beginEdit(this->parameterId);
+        while (1) {
+            button = drawingContext->getMouseButtons();
+            if (!(button & kLButton))
+                break;
+
+            if (oldButton != button && (button & kShift)) {
+                oldValue = this->value;
+                oldButton = button;
+            }
+            else if (!(button & kShift)) {
+                oldValue = this->value;
+            }
+
+            this->value = (float)(mousePos->y - delta) / range;
+            if (this->flags & 0x40)
+                this->value = 1.0f - this->value;
+            if (button & kShift)
+                this->value = (this->value - oldValue) / this->fineTuneDivider + oldValue;
+
+            this->clampValue();
+            if (this->isDirty())
+                this->listener->valueChanged(drawingContext, this);
+
+            drawingContext->getRelativeMousePos(mousePos);
+            this->onIdle();
+        }
+        this->parent->endEdit(this->parameterId);
     }
 }
 }

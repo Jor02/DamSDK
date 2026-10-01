@@ -2,6 +2,7 @@
 #include <windef.h>
 #include <wingdi.h>
 
+#include "damsdk/utils/portable_stdint.h"
 #include "Bitmap.h"
 #include "GDIDrawingContext.h"
 
@@ -18,11 +19,11 @@ namespace Windows {
         this->height = 0;
         this->maskBitmap = 0;
         
-        HBITMAP hBitmap = LoadBitmapA(g_hInstance,(LPCSTR)(resId & 0xffff));
+        HBITMAP hBitmap = LoadBitmapA(g_hInstance,(LPCSTR)(uintptr_t)(resId & 0xffff));
         this->bitmap = hBitmap;
         if (hBitmap != NULL) {
             tagBITMAP bitmapInfo;
-            int bytesWritten = GetObjectA(hBitmap,0x18,&bitmapInfo);
+            int bytesWritten = GetObjectA(hBitmap, sizeof(tagBITMAP), &bitmapInfo);
             if (bytesWritten != 0) {
                 this->width = bitmapInfo.bmWidth;
                 this->height = bitmapInfo.bmHeight;
@@ -95,86 +96,81 @@ namespace Windows {
     // FUNCTION: DELAYLAMA 0x10007f90
     void Bitmap::drawMasked(GDIDrawingContext* drawingContext, RECT* destRect, POINT* srcPoint)
     {
+        // The classic GDI transparent blit (as in VSTGUI 2.x): the mask is built once
+        // from the transparent colour, then the bitmap is combined with the background
+        // in an off-screen copy and the result is copied to the screen.
         if (this->maskBitmap == nullptr)
-        {
-            COLORREF colorKey = RGB(255, 255, 255);
-            this->maskBitmap = createMaskBitmap(drawingContext->hDC, this->bitmap, colorKey);
-        }
+            this->maskBitmap = createMaskBitmap(drawingContext->hDC, this->bitmap,
+                RGB(kTransparentColor.red, kTransparentColor.green, kTransparentColor.blue));
+
+        HDC hdcBitmap = CreateCompatibleDC(drawingContext->hDC);
+        SelectObject(hdcBitmap, this->bitmap);
 
         BITMAP bm;
+        POINT ptSize;
         GetObjectA(this->bitmap, sizeof(BITMAP), &bm);
-        SIZE bitmapSize = { bm.bmWidth, bm.bmHeight };
+        ptSize.x = bm.bmWidth;
+        ptSize.y = bm.bmHeight;
+        DPtoLP(hdcBitmap, &ptSize, 1);
 
-        HDC srcDC = CreateCompatibleDC(drawingContext->hDC);
-        SelectObject(srcDC, this->bitmap);
+        HDC hdcBack   = CreateCompatibleDC(drawingContext->hDC);
+        HDC hdcObject = CreateCompatibleDC(drawingContext->hDC);
+        HDC hdcMem    = CreateCompatibleDC(drawingContext->hDC);
+        HDC hdcSave   = CreateCompatibleDC(drawingContext->hDC);
 
-        DPtoLP(srcDC, (LPPOINT)&bitmapSize, 1);
+        HBITMAP bmAndBack = CreateBitmap(ptSize.x, ptSize.y, 1, 1, NULL);
+        HBITMAP bmAndMem  = CreateCompatibleBitmap(drawingContext->hDC, ptSize.x, ptSize.y);
+        HBITMAP bmSave    = CreateCompatibleBitmap(drawingContext->hDC, ptSize.x, ptSize.y);
 
-        HDC maskDC       = CreateCompatibleDC(drawingContext->hDC);
-        HDC maskBitmapDC = CreateCompatibleDC(drawingContext->hDC);
-        HDC destTempDC   = CreateCompatibleDC(drawingContext->hDC);
-        HDC srcTempDC    = CreateCompatibleDC(drawingContext->hDC);
+        HGDIOBJ bmBackOld   = SelectObject(hdcBack, bmAndBack);
+        HGDIOBJ bmObjectOld = SelectObject(hdcObject, this->maskBitmap);
+        HGDIOBJ bmMemOld    = SelectObject(hdcMem, bmAndMem);
+        HGDIOBJ bmSaveOld   = SelectObject(hdcSave, bmSave);
 
-        HBITMAP monoBitmap     = CreateBitmap(bitmapSize.cx, bitmapSize.cy, 1, 1, nullptr);
-        HBITMAP tempColor1     = CreateCompatibleBitmap(drawingContext->hDC, bitmapSize.cx, bitmapSize.cy);
-        HBITMAP tempColor2     = CreateCompatibleBitmap(drawingContext->hDC, bitmapSize.cx, bitmapSize.cy);
+        // Keep the bitmap, and make the inverse of the mask
+        BitBlt(hdcSave, 0, 0, ptSize.x, ptSize.y, hdcBitmap, 0, 0, SRCCOPY);
+        BitBlt(hdcBack, 0, 0, ptSize.x, ptSize.y, hdcObject, 0, 0, NOTSRCCOPY);
 
-        HGDIOBJ oldMono        = SelectObject(maskDC, monoBitmap);
-        HGDIOBJ oldMask        = SelectObject(maskBitmapDC, this->maskBitmap);
-        HGDIOBJ oldTemp1       = SelectObject(destTempDC, tempColor1);
-        HGDIOBJ oldTemp2       = SelectObject(srcTempDC, tempColor2);
+        // Background under the bitmap, cut out where the bitmap is opaque
+        BitBlt(hdcMem, 0, 0, ptSize.x, ptSize.y, drawingContext->hDC,
+            destRect->left + drawingContext->drawOffset.x - srcPoint->x,
+            destRect->top + drawingContext->drawOffset.y - srcPoint->y, SRCCOPY);
+        BitBlt(hdcMem, 0, 0, ptSize.x, ptSize.y, hdcObject, 0, 0, SRCAND);
 
-        BitBlt(srcTempDC, 0, 0, bitmapSize.cx, bitmapSize.cy, srcDC, 0, 0, SRCCOPY);
-        BitBlt(maskDC, 0, 0, bitmapSize.cx, bitmapSize.cy, maskBitmapDC, 0, 0, 0x330008);
-
-        int destX = destRect->left   + drawingContext->drawOffset.x;
-        int destY = destRect->top    + drawingContext->drawOffset.y;
-        int srcX  = srcPoint->x;
-        int srcY  = srcPoint->y;
-        BitBlt(destTempDC, 0, 0, bitmapSize.cx, bitmapSize.cy,
-            drawingContext->hDC,
-            destX - srcX, destY - srcY,
-            SRCCOPY);
-
-        BitBlt(destTempDC, 0, 0, bitmapSize.cx, bitmapSize.cy,
-            maskBitmapDC, 0, 0, SRCAND);
-
-        BitBlt(srcDC, 0, 0, bitmapSize.cx, bitmapSize.cy,
-            maskDC, 0, 0, SRCAND);
-
-        BitBlt(destTempDC, 0, 0, bitmapSize.cx, bitmapSize.cy,
-            srcDC, 0, 0, SRCPAINT);
+        // Bitmap with its transparent parts cleared, combined with the background
+        BitBlt(hdcBitmap, 0, 0, ptSize.x, ptSize.y, hdcBack, 0, 0, SRCAND);
+        BitBlt(hdcMem, 0, 0, ptSize.x, ptSize.y, hdcBitmap, 0, 0, SRCPAINT);
 
         BitBlt(drawingContext->hDC,
-            destX, destY,
+            destRect->left + drawingContext->drawOffset.x, destRect->top + drawingContext->drawOffset.y,
             destRect->right - destRect->left, destRect->bottom - destRect->top,
-            destTempDC,
-            srcX, srcY,
-            SRCCOPY);
+            hdcMem, srcPoint->x, srcPoint->y, SRCCOPY);
 
-        BitBlt(srcDC, 0, 0, bitmapSize.cx, bitmapSize.cy,
-            srcTempDC, 0, 0, SRCCOPY);
+        // Restore the bitmap
+        BitBlt(hdcBitmap, 0, 0, ptSize.x, ptSize.y, hdcSave, 0, 0, SRCCOPY);
 
-        SelectObject(maskDC, oldMono);
-        DeleteObject(monoBitmap);
-        SelectObject(destTempDC, oldTemp1);
-        DeleteObject(tempColor1);
-        SelectObject(srcTempDC, oldTemp2);
-        DeleteObject(tempColor2);
-        SelectObject(maskBitmapDC, oldMask);
+        DeleteObject(SelectObject(hdcBack, bmBackOld));
+        DeleteObject(SelectObject(hdcMem, bmMemOld));
+        DeleteObject(SelectObject(hdcSave, bmSaveOld));
+        SelectObject(hdcObject, bmObjectOld);
 
-        DeleteDC(destTempDC);
-        DeleteDC(maskDC);
-        DeleteDC(maskBitmapDC);
-        DeleteDC(srcTempDC);
-        DeleteDC(srcDC);
+        DeleteDC(hdcMem);
+        DeleteDC(hdcBack);
+        DeleteDC(hdcObject);
+        DeleteDC(hdcSave);
+        DeleteDC(hdcBitmap);
+    }
+
+    // FUNCTION: DELAYLAMA 0x10007ec0
+    void Bitmap::remember() {
+        this->refCount = this->refCount + 1;
     }
 
     // FUNCTION: DELAYLAMA 0x10007ed0
-    void Bitmap::unregisterBitmap(Bitmap* bitmap)
+    void Bitmap::unregisterBitmap()
     {
-        if (bitmap->refCount > 0 && --bitmap->refCount == 0)
-            delete bitmap;
+        if (this->refCount > 0 && --this->refCount == 0)
+            delete this;
     }
 }
 }

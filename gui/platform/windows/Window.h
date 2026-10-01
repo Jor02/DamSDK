@@ -5,11 +5,17 @@
 #include "damsdk/utils/portable_stdint.h"
 
 namespace DamSDK {
-    namespace Api { class EditorBase; }
+    namespace Api {
+        class EditorBase;
+    }
     namespace Gui {
-        namespace Controls { class Control; }
+        namespace Controls {
+            class Control;
+        }
         namespace Platform {
-            namespace Windows { class DropTarget; }
+            namespace Windows {
+                class DropTarget;
+            }
         }
     }
 }
@@ -22,7 +28,6 @@ namespace Windows {
     // VTABLE: DELAYLAMA 0x1000bc48
     class Window : public Base::View {
         public:
-            char unused1;
             Api::EditorBase *editor;
             HWND handle;
             Bitmap *backgroundBitmap;
@@ -30,41 +35,41 @@ namespace Windows {
             int maxChildren;
             Controls::Control **children;
             Base::View *modalView;
-            COLORREF* unknownClass;
+            Base::View* editView;  // view with keyboard focus (text edit)
             bool redrawPending;
             bool visible;
-            char unused3[2];
+            bool dropActive;  // registered as an OLE drop target
+            char unused3[1];
             HWND hWnd;
             bool isActive;
             char unused4[3];
             void *closeParameter;
+            HCURSOR defaultCursor;  // the cursor before the plugin changed it
         public:
             Window(RECT *pRect, HWND hParent, Api::EditorBase *editor);
-            ~Window();
+            virtual ~Window();
             virtual void update(GDIDrawingContext *drawingContext) override;
             virtual void onDraw(GDIDrawingContext *drawingContext) override;
-            virtual bool openPluginWindow(HWND hParent);
-            virtual bool needsRedraw();
+            bool openPluginWindow(HWND hParent);
+            bool needsRedraw();
             virtual bool registerControl(Controls::Control *control);
             virtual bool onMouseWheel(GDIDrawingContext *drawingContext, POINT *relativeMousePoint, float scrollDelta) override;
-            virtual void drawControlOrSelf(Controls::Control *target);
-            virtual void refresh();
-            virtual void setBackgroundBitmap(Bitmap *background);
-            virtual void resetVtable(Window* frame);
-            virtual void cleanup();
-            virtual bool closeWindow();
-            virtual bool setDragAndDropState(bool enable);
+            void drawControlOrSelf(Controls::Control *target);
+            void refresh();
+            void setBackgroundBitmap(Bitmap *background);
+            void setCursor(int cursorType);
+            bool closeWindow();
+            bool setDragAndDropState(bool enable);
             virtual void onMouseDown(GDIDrawingContext* drawingContext, POINT* mousePos) override;
-            virtual bool routeMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, POINT* mousePos) override;
-            virtual bool removeChild(Controls::Control* child, bool shouldRelease);
-            virtual bool destroyChildren(bool* callExtraFlag);
+            virtual bool onDrop(void** items, long count, long type, POINT* where) override;
+            virtual bool removeChild(Controls::Control* child, const bool& withForget);
+            virtual bool destroyChildren(const bool& withForget);
             virtual bool containsChild(Controls::Control* target);
-            virtual int32_t setModalView(Base::View* view);
-            virtual void beginEdit(int parameterId);
-            virtual void endEdit(int parameterId);
-            virtual Controls::Control* getChildAtMousePos();
-            virtual void getLocalMousePos(POINT* mousePos);
-            virtual DropTarget* createDropTarget();
+            int32_t setModalView(Base::View* view);
+            void beginEdit(int parameterId);
+            void endEdit(int parameterId);
+            Controls::Control* getChildAtMousePos();
+            bool getLocalMousePos(POINT* mousePos);
             static bool registerWindowClass();
             static void unregisterWindowClass();
     };

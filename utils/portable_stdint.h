@@ -24,15 +24,17 @@
             typedef unsigned __int64 size_t;
             typedef __int64          ptrdiff_t;
             typedef __int64          intptr_t;
+            typedef unsigned __int64 uintptr_t;
         #else
             typedef unsigned int     size_t;
             typedef int              ptrdiff_t;
             typedef int              intptr_t;
+            typedef unsigned int     uintptr_t;
         #endif
     #endif
 #else
     /* GCC / Clang / Modern Unix */
-    #if __STDC_VERSION__ >= 199901L
+    #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || __cplusplus >= 201103L
         #include <cstdint>
     #else
         #error "Compiler too old and not MSVC6. Cannot guarantee int sizes."

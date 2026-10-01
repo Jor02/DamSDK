@@ -6,7 +6,9 @@
 namespace DamSDK {
     namespace Gui {
         namespace Platform {
-            namespace Windows { class Window; }
+            namespace Windows {
+                class Window;
+            }
         }
     }
 }
@@ -15,26 +17,28 @@ namespace DamSDK {
 namespace Gui {
 namespace Platform {
 namespace Windows {
-    class DropTarget {
-        int refCount;
-        bool canAcceptDrop;
-        char field3_0x9;
-        char field4_0xa;
-        char field5_0xb;
-        Window *parentFrame;
+    // VTABLE: DELAYLAMA 0x1000bcb4
+    // COM drop target (VSTGUI 2.x CDropTarget): IDropTarget's methods, then the destructor.
+    class DropTarget : public IDropTarget {
+        long refCount;          // 0x04
+        bool canAcceptDrop;     // 0x08
+        Window *parentFrame;    // 0x0c
     public:
         DropTarget(Window* frame);
-        void destroy();
-        HRESULT queryInterface(IID* riid, void* * ppvObject);
-        int addRef();
-        int release();
-        HRESULT dragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect);
-        HRESULT dragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect);
-        HRESULT returnZero();
-        void drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect);
-        HRESULT resolveShortcutTarget();
-        void __chkstk();
+        virtual ~DropTarget();
+
+        STDMETHOD (QueryInterface) (REFIID riid, void** object);
+        STDMETHOD_ (ULONG, AddRef) (void);
+        STDMETHOD_ (ULONG, Release) (void);
+        STDMETHOD (DragEnter) (IDataObject* dataObject, DWORD keyState, POINTL pt, DWORD* effect);
+        STDMETHOD (DragOver) (DWORD keyState, POINTL pt, DWORD* effect);
+        STDMETHOD (DragLeave) (void);
+        STDMETHOD (Drop) (IDataObject* dataObject, DWORD keyState, POINTL pt, DWORD* effect);
+
     };
+
+    DropTarget* createDropTarget(Window* frame);
+    bool checkResolveLink(const char* nativePath, char* resolved);
 }
 }
 }

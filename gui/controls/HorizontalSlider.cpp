@@ -7,7 +7,7 @@ namespace Gui {
 namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x1000a010
-    HorizontalSlider::HorizontalSlider(RECT *pRect, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handleBmp, Platform::Windows::Bitmap *backgroundBmp, POINT* offset, int flags) : Control(pRect, callback, parameterId, backgroundBmp)
+    HorizontalSlider::HorizontalSlider(RECT *pRect, ControlListener* listener, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handleBmp, Platform::Windows::Bitmap *backgroundBmp, POINT* offset, int flags) : Control(pRect, listener, parameterId, backgroundBmp)
     {
         this->backgroundOffset.x = offset->x;
         this->backgroundOffset.y = offset->y;
@@ -24,7 +24,7 @@ namespace Controls {
             this->handleHeight = 1;
         }
         else {
-            View::useBitmap(handleBmp);
+            handleBmp->remember();
             handleImage = this->handleImage;
             this->handleWidth = handleImage->width;
             this->handleHeight = handleImage->height;
@@ -38,9 +38,11 @@ namespace Controls {
         this->fineTuneDivider = 10.0;
     }
     
-    // FUNCTION: DELAYLAMA 0x1000a120
+    // FUNCTION: DELAYLAMA 0x1000a140
     HorizontalSlider::~HorizontalSlider() {
-        this->destroy();
+        if (this->handleImage != nullptr) {
+            this->handleImage->unregisterBitmap();
+        }
     }
 
     // FUNCTION: DELAYLAMA 0x10009b50
@@ -82,191 +84,133 @@ namespace Controls {
     // FUNCTION: DELAYLAMA 0x10009fe0
     void HorizontalSlider::changeHandle(Platform::Windows::Bitmap* newHandle) {
         if (this->handleImage != nullptr) {
-            Platform::Windows::Bitmap::unregisterBitmap(this->handleImage);
+            this->handleImage->unregisterBitmap();
         }
         this->handleImage = newHandle;
         if (newHandle != nullptr) {
-            View::useBitmap(newHandle);
+            newHandle->remember();
         }
-    }
-
-    // FUNCTION: DELAYLAMA 0x1000a140
-    void HorizontalSlider::destroy() {
-        if (this->handleImage != nullptr) {
-            Platform::Windows::Bitmap::unregisterBitmap(this->handleImage);
-        }
-        Control::destroy();
     }
 
      // FUNCTION: DELAYLAMA 0x1000a1a0
-     void HorizontalSlider::onDraw(Platform::Windows::GDIDrawingContext* drawingContext) {
-         // Early out if no bitmaps to draw - prevents black square from being rendered
-         if (this->bitmap == nullptr && this->handleImage == nullptr) {
-             return;
-         }
-         
-         float valueToUse = this->value;
-         
-         // Check for flags & 8 to determine if value should be inverted
-         if ((this->flags & 8) == 0) {
-             valueToUse = 1.0f - valueToUse;
-         }
-         
-         Platform::Windows::OffscreenGDIDrawingContext* offscreenContext = new Platform::Windows::OffscreenGDIDrawingContext(
-             this->parent,
-             this->trackWidth,
-             this->trackHeight,
-             Platform::Windows::DAT_BACK_COLOR
-         );
+    void HorizontalSlider::onDraw(Platform::Windows::GDIDrawingContext* drawingContext) {
+        // Same steps as VSTGUI's CSlider::draw, always through an offscreen context.
+        float value;
+        if (this->flags & 8)
+            value = this->value;
+        else
+            value = 1.0f - this->value;
 
-         RECT trackRect;
-         trackRect.left = 0;
-         trackRect.top = 0;
-         trackRect.right = this->trackWidth;
-         trackRect.bottom = this->trackHeight;
-         
-         // Draw the track background if a bitmap is provided.
-         Platform::Windows::Bitmap* trackBitmap = this->bitmap;
-         if (trackBitmap != nullptr) {
-             POINT srcOffset = this->backgroundOffset;
-             if (!this->useAlphaBlending) {
-                 trackBitmap->blit(offscreenContext, &trackRect, &srcOffset);
-             } else {
-                 trackBitmap->drawMasked(offscreenContext, &trackRect, &srcOffset);
-             }
-         }
-         RECT handleRect;
-         handleRect.top    = this->handlePos.y;
-         handleRect.bottom = this->handleHeight + handleRect.top;
-         
-         // Compute the handle's horizontal position based on the current normalized value.
-         int valueRange = this->trackMaxX - this->trackMinX;
-         int handleOffset = static_cast<int>(valueToUse * valueRange);
-         int handleMinPos = this->handleMinPos;
-         
-         handleRect.left = handleOffset + this->handlePos.x;
-        if (handleRect.left < handleMinPos) {
-            handleRect.left = handleMinPos;
+        Platform::Windows::OffscreenGDIDrawingContext* offscreen =
+            new Platform::Windows::OffscreenGDIDrawingContext(this->parent, this->trackWidth, this->trackHeight, Platform::Windows::kBlackColor);
+
+        // Background
+        RECT rect = {0, 0, this->trackWidth, this->trackHeight};
+        if (this->bitmap) {
+            if (this->useAlphaBlending)
+                this->bitmap->drawMasked(offscreen, &rect, &this->backgroundOffset);
+            else
+                this->bitmap->blit(offscreen, &rect, &this->backgroundOffset);
         }
 
-        handleRect.right = this->handleWidth + handleRect.left;
-        
-        handleMinPos = this->handleMaxPos;
-        if (handleMinPos < handleRect.right) {
-            handleRect.right = handleMinPos;
-        }
+        // Handle position
+        RECT handleRect;
+        handleRect.top = this->handlePos.y;
+        handleRect.bottom = handleRect.top + this->handleHeight;
+        handleRect.left = this->handlePos.x + (int)(value * (this->trackMaxX - this->trackMinX));
+        if (handleRect.left < this->handleMinPos)
+            handleRect.left = this->handleMinPos;
+        handleRect.right = handleRect.left + this->handleWidth;
+        if (handleRect.right > this->handleMaxPos)
+            handleRect.right = this->handleMaxPos;
 
-        // Draw the handle image.
-        Platform::Windows::Bitmap* handleImage = this->handleImage;
-        if (handleImage != nullptr) {
-            POINT srcPoint;  // drawn from top‑left of the handle bitmap
-            srcPoint.x = 0;
-            srcPoint.y = 0;
-
-            if (!this->isHandleTransparent) {
-                handleImage->blit(offscreenContext, &handleRect, &srcPoint);
-            } else {
-                handleImage->drawMasked(offscreenContext, &handleRect, &srcPoint);
+        if (this->handleImage) {
+            if (this->isHandleTransparent) {
+                POINT zero = {0, 0};
+                this->handleImage->drawMasked(offscreen, &handleRect, &zero);
+            }
+            else {
+                POINT zero = {0, 0};
+                this->handleImage->blit(offscreen, &handleRect, &zero);
             }
         }
 
-        // Copy the completed offscreen buffer to the actual screen.
-        RECT destRect = this->rect;
-        offscreenContext->copyToScreen(drawingContext, destRect.left, destRect.top, destRect.right, destRect.bottom, 0, 0);
+        offscreen->copyToScreen(drawingContext, this->rect, Platform::Windows::Point(0, 0));
+        delete offscreen;
 
-        // Clean up offscreen context.
-        delete offscreenContext;
-
-        // Update the left coordinate of the track (used by parent for layout) and mark dirty.
-        this->trackLeftX = destRect.left + handleRect.left;
-        this->setDirty(true);
+        this->trackLeftX = this->rect.left + handleRect.left;
+        this->setDirty(false);
     }
 
     // FUNCTION: DELAYLAMA 0x1000a360
     void HorizontalSlider::onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* mousePos) {
-        if (this->isEnabled != false) {
-            uint8_t modifiers = View::GetPressedModifiersAndMouseButtons();
-            // Ctrl + Left Click -> Reset to default value
-            if (modifiers == 0x11) {  // 0x10 (Ctrl) | 0x01 (Left Button)
-                float defaultValue = this->getDefaultValue();
-                this->value = defaultValue;
-                if (this->isDirty()) {
-                    this->callback(drawingContext, this);
-                }
-                return;
-            }
-            else {
+        // Same steps as VSTGUI's CSlider::mouse
+        if (!this->isEnabled)
+            return;
 
-                int horizontalAnchor;
+        uint32_t button = drawingContext->getMouseButtons();
 
-                //Check for Left Click (0x01)
-                if ((modifiers & 1) != 0) {
-                    int trackMinX = this->trackMinX;
-                    if (this->snapToMouse == false) {
-                        int trackLeft = this->trackLeftX;
-                        int trackTop = this->rect.top;
-                        int mouseX = mousePos->x;
-                        if (mouseX < trackLeft) {
-                        return;
-                        }
-                        if (this->handleWidth + trackLeft < mouseX) {
-                            return;
-                        }
-                        if (mousePos->y < trackTop) {
-                            return;
-                        }
-                        if (this->handleHeight + trackTop < mousePos->y) {
-                            return;
-                        }
-                        horizontalAnchor = trackMinX + (mouseX - trackLeft);
-                    }
-                    else {
-                        horizontalAnchor = trackMinX + -1 + this->handleWidth / 2;
-                    }
-
-                    trackMaxX = this->trackMaxX;
-                    float curValue = this->value;
-                    this->parent->beginEdit(this->parameterId);
-
-                    modifiers = View::GetPressedModifiersAndMouseButtons();
-                    uint32_t previousModifiers = modifiers;
-
-                    float previousValue = this->value;
-                    while ((modifiers & 1) != 0) {
-                        if (modifiers != previousModifiers) {
-                            if ((modifiers & 8) != 0) {
-                                previousValue = this->value;
-                            }
-                            previousModifiers = modifiers;
-                        }
-                        else {
-                            curValue = this->value;
-                        }
-                        flags = this->flags;
-                        float calculatedValue = (float)(mousePos->x - horizontalAnchor) / (float)(trackMaxX - trackMinX);
-                        this->value = calculatedValue;
-                        
-                        if ((flags & 0x10) != 0) {
-                            this->value = 1.0f - calculatedValue;
-                        }
-
-                        if ((modifiers  & 8) != 0) {
-                            this->value = (this->value - (float)curValue) / this->fineTuneDivider + (float)curValue;
-                        }
-
-                        this->clampValue();
-                        bool isDirty = this->isDirty();
-                        if (isDirty != false) {
-                            this->callback(drawingContext,this);
-                        }
-                        drawingContext->getRelativeMousePos(mousePos);
-                        this->onIdle();
-                        modifiers = View::GetPressedModifiersAndMouseButtons();
-                    }
-                    this->parent->endEdit(this->parameterId);
-                }
-            }
+        // Ctrl + click: reset to the default value
+        if (button == (kLButton | kControl)) {
+            this->value = this->getDefaultValue();
+            if (this->isDirty())
+                this->listener->valueChanged(drawingContext, this);
+            return;
         }
+
+        // Left button only
+        if (!(button & kLButton))
+            return;
+
+        int delta = this->trackMinX;
+        if (!this->snapToMouse) {
+            // The click must be on the handle
+            RECT handleRect;
+            handleRect.left = this->trackLeftX;
+            handleRect.top = this->rect.top;
+            handleRect.right = handleRect.left + this->handleWidth;
+            handleRect.bottom = handleRect.top + this->handleHeight;
+            if (mousePos->x < handleRect.left || mousePos->x > handleRect.right ||
+                mousePos->y < handleRect.top || mousePos->y > handleRect.bottom)
+                return;
+            delta += mousePos->x - handleRect.left;
+        }
+        else {
+            delta += this->handleWidth / 2 - 1;
+        }
+
+        float range = (float)(this->trackMaxX - this->trackMinX);
+        float oldValue = this->value;
+        uint32_t oldButton = button;
+
+        this->parent->beginEdit(this->parameterId);
+        while (1) {
+            button = drawingContext->getMouseButtons();
+            if (!(button & kLButton))
+                break;
+
+            if (oldButton != button && (button & kShift)) {
+                oldValue = this->value;
+                oldButton = button;
+            }
+            else if (!(button & kShift)) {
+                oldValue = this->value;
+            }
+
+            this->value = (float)(mousePos->x - delta) / range;
+            if (this->flags & 0x10)
+                this->value = 1.0f - this->value;
+            if (button & kShift)
+                this->value = (this->value - oldValue) / this->fineTuneDivider + oldValue;
+
+            this->clampValue();
+            if (this->isDirty())
+                this->listener->valueChanged(drawingContext, this);
+
+            drawingContext->getRelativeMousePos(mousePos);
+            this->onIdle();
+        }
+        this->parent->endEdit(this->parameterId);
     }
 }
 }

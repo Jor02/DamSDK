@@ -10,8 +10,8 @@ namespace Gui {
 namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10008c80
-    Control::Control(RECT *pRect, callbackCallback callback, int parameterId, Platform::Windows::Bitmap *bmp) : Base::View(pRect) {
-        this->callback = callback;
+    Control::Control(RECT *pRect, ControlListener* listener, int parameterId, Platform::Windows::Bitmap *bmp) : Base::View(pRect) {
+        this->listener = listener;
         this->prevValue = 1.0f;
         this->max = 1.0f;
         this->parameterId = parameterId;
@@ -24,13 +24,16 @@ namespace Controls {
         this->isEnabled = true;
 
         if (bmp != nullptr) {
-            View::useBitmap(bmp);
+            bmp->remember();
         }
     }
 
-    // FUNCTION: DELAYLAMA 0x10008d10
+    // FUNCTION: DELAYLAMA 0x10008d30
     Control::~Control() {
-        destroy();
+        Platform::Windows::Bitmap* bmp = this->bitmap;
+        if (bmp != nullptr) {
+          bmp->unregisterBitmap();
+        }
     }
 
     // FUNCTION: DELAYLAMA 0x10001960 FOLDED
@@ -45,11 +48,8 @@ namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10004790
     void Control::onIdle() {
-        Platform::Windows::Window* parentFrame = this->parent;
-        Api::EditorBase* editor = parentFrame->editor;
-        if (parentFrame != nullptr && editor != nullptr) {
-            editor->idleHandler();
-        }
+        if (this->parent != nullptr && this->parent->editor != nullptr)
+            this->parent->editor->idleHandler();
     }
 
     // FUNCTION: DELAYLAMA 0x100047c0
@@ -75,6 +75,11 @@ namespace Controls {
     // FUNCTION: DELAYLAMA 0x10004800
     float Control::getMax() {
         return this->max;
+    }
+
+    // FUNCTION: DELAYLAMA 0x10001950 FOLDED
+    void Control::setPreviousValue(float previousValue) {
+        this->prevValue = previousValue;
     }
 
     // FUNCTION: DELAYLAMA 0x10004810
@@ -107,17 +112,9 @@ namespace Controls {
         return this->wheelSensitivity;
     }
 
-    // FUNCTION: DELAYLAMA 0x10008d30
-    void Control::destroy() {
-        Platform::Windows::Bitmap* bmp = this->bitmap;
-        if (bmp != nullptr) {
-          Platform::Windows::Bitmap::unregisterBitmap(bmp);
-        }
-    }
-
     // FUNCTION: DELAYLAMA 0x10008d90
     bool Control::isDirty() {
-        if ((this->prevValue == this->value) && (this->_isDirty == false)) {
+        if ((this->prevValue == this->value) && (!this->_isDirty)) {
           return false;
         }
         return true;
@@ -125,55 +122,48 @@ namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10008db0
     void Control::setDirty(bool isDirty) {
-        float prevValue;
-        
         this->_isDirty = isDirty;
         if (isDirty) {
-          prevValue = -1.0;
-          if (this->value == -1.0) {
-            this->prevValue = 0.0;
-            return;
-          }
+            if (this->value != -1.0f)
+                this->prevValue = -1.0f;
+            else
+                this->prevValue = 0.0f;
         }
         else {
-          prevValue = this->value;
+            this->prevValue = this->value;
         }
-        this->prevValue = prevValue;
     }
 
     // FUNCTION: DELAYLAMA 0x10008de0
     void Control::changeBitmap(Platform::Windows::Bitmap* newBitmap) {
         Platform::Windows::Bitmap* oldBitmap = this->bitmap;
         if (oldBitmap != nullptr) {
-          Platform::Windows::Bitmap::unregisterBitmap(oldBitmap);
+          oldBitmap->unregisterBitmap();
         }
         this->bitmap = newBitmap;
         if (newBitmap != nullptr) {
-          View::useBitmap(newBitmap);
+          newBitmap->remember();
         }
     }
 
     // FUNCTION: DELAYLAMA 0x10008e10
     void Control::clampValue() {
-        if (this->max < this->value) {
-          this->value = this->max;
-          return;
-        }
-        if (this->value < this->min) {
-          this->value = this->min;
-        }
+        if (this->value > this->max)
+            this->value = this->max;
+        else if (this->value < this->min)
+            this->value = this->min;
     }
 
     // FUNCTION: DELAYLAMA 0x10009410
     bool Control::onMouseWheel(Platform::Windows::GDIDrawingContext* drawingContext, POINT* mousePos, float wheelDelta) {
-        if (this->isEnabled == false) {
+        if (!this->isEnabled) {
           return false;
         }
 
-        byte inputMask = View::GetPressedModifiersAndMouseButtons();
+        byte inputMask = drawingContext->getMouseButtons();
         float valueChange = wheelDelta * this->wheelSensitivity;
 
-        if ((inputMask & 8) != 0) {
+        if ((inputMask & kShift) != 0) {
           valueChange = valueChange * 1.0f;
         }
 
@@ -181,8 +171,8 @@ namespace Controls {
         this->clampValue();
 
         bool isDirty = this->isDirty();
-        if (isDirty != false) {
-            this->callback(drawingContext,this);
+        if (isDirty) {
+            this->listener->valueChanged(drawingContext, this);
         }
         return true;
     }

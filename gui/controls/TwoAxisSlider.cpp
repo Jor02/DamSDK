@@ -8,7 +8,7 @@ namespace Gui {
 namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10004350
-    TwoAxisSlider::TwoAxisSlider(RECT *bounds, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handle, Platform::Windows::Bitmap *background, POINT* offset, int flags) : HorizontalSlider(bounds,callback,parameterId,minValue,maxValue,handle,background,offset,flags)
+    TwoAxisSlider::TwoAxisSlider(RECT *bounds, ControlListener* listener, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *handle, Platform::Windows::Bitmap *background, POINT* offset, int flags) : HorizontalSlider(bounds,listener,parameterId,minValue,maxValue,handle,background,offset,flags)
     {
         int handleHeight = this->handleHeight;
         
@@ -28,54 +28,47 @@ namespace Controls {
         this->yValueRange = (float)(handleMaxY - this->yTop);
     }
     
-    // FUNCTION: DELAYLAMA 0x10004420
-    TwoAxisSlider::~TwoAxisSlider() {
-        HorizontalSlider::destroy();
-    }
+    // FUNCTION: DELAYLAMA 0x10004450 FOLDED
+    void TwoAxisSlider::onDraw(DamSDK::Gui::Platform::Windows::GDIDrawingContext* drawContext) {}
 
     // FUNCTION: DELAYLAMA 0x10004460
     void TwoAxisSlider::onMouseDown(DamSDK::Gui::Platform::Windows::GDIDrawingContext* drawContext, POINT* mousePos) {
-        if (this->isEnabled != false) {
-            uint8_t inputMask = View::GetPressedModifiersAndMouseButtons();
-            
-            if ((inputMask & 1) != 0) {
+        if (!this->isEnabled)
+            return;
 
-                if (inputMask != 0) {
-                    this->value = 201.0f;
-                    this->callback(drawContext, this);
-                }
+        uint32_t button = drawContext->getMouseButtons();
+        if (!(button & kLButton))
+            return;
 
-                int handleWidth = this->handleWidth;
-                int minX = this->trackMinX;
-
-                this->parent->beginEdit(this->parameterId);
-
-                inputMask = View::GetPressedModifiersAndMouseButtons();
-                int isStillDown = (int)inputMask;
-
-                while (isStillDown != 0) {
-                    // X-Axis Update (vibrato amount, normalized 0-1)
-                    this->value = (float)(mousePos->x - (handleWidth / 2 + minX)) / this->xValueRange;
-                    this->clampValue();
-                    this->callback(drawContext, this);
-
-                    // Y-Axis Update (pitch, offset by 100 to distinguish in onControlChanged)
-                    this->value = (float)(mousePos->y - this->yTop) / this->yValueRange;
-                    this->clampValue();
-                    this->value = this->value + 100.0f;
-                    this->callback(drawContext, this);
-
-                    drawContext->getRelativeMousePos(mousePos);
-                    this->onIdle();
-
-                    inputMask = View::GetPressedModifiersAndMouseButtons();
-                    isStillDown = (int)inputMask;
-                }
-
-                this->value = 200.0f;
-                this->callback(drawContext, this);
-            }
+        // 201 tells the editor that singing starts
+        if (button) {
+            this->value = 201.0f;
+            this->listener->valueChanged(drawContext, this);
         }
+
+        int xAnchor = this->handleWidth / 2 + this->trackMinX;
+        int yAnchor = this->halfHandleHeight2 / 2 + this->yTop;
+
+        this->parent->beginEdit(this->parameterId);
+        while (drawContext->getMouseButtons()) {
+            // X axis: pitch (0..1)
+            this->value = (float)(mousePos->x - xAnchor) / this->xValueRange;
+            this->clampValue();
+            this->listener->valueChanged(drawContext, this);
+
+            // Y axis: vowel, sent as 100..101 so the editor can tell the axes apart
+            this->value = (float)(mousePos->y - yAnchor) / this->yValueRange;
+            this->clampValue();
+            this->value = this->value + 100.0f;
+            this->listener->valueChanged(drawContext, this);
+
+            drawContext->getRelativeMousePos(mousePos);
+            this->onIdle();
+        }
+
+        // 200 tells the editor that singing stops
+        this->value = 200.0f;
+        this->listener->valueChanged(drawContext, this);
     }
 }
 }

@@ -10,7 +10,7 @@ namespace DamSDK {
 namespace Api {
 
     // FUNCTION: DELAYLAMA 0x10001000
-    static intptr_t _dispatcher(DamPlugin * plugin, int32_t targetOperation, int32_t index, int32_t value, void * data, float optional) {
+    static intptr_t _dispatcher(DamPlugin * plugin, int32_t targetOperation, int32_t index, intptr_t value, void * data, float optional) {
         AudioBase* audioBase = (AudioBase*) plugin->object;
         if (targetOperation == 1) {
             audioBase->dispatchPluginCallback(1,index,value,data,optional);
@@ -34,74 +34,64 @@ namespace Api {
         audioBase->setParameterValue(parameterId, value);
     }
 
-    // FUNCTION: DELAYLAMA 0x100010c0
-    static void _processFloat(DamPlugin* plugin, float** inputBuffer, float** outputBuffer, int32_t bufferSize) {
+    // FUNCTION: DELAYLAMA 0x100010a0
+    static void _process(DamPlugin* plugin, float** inputs, float** outputs, int32_t sampleFrames) {
         AudioBase* audioBase = (AudioBase*) plugin->object;
-        audioBase->invokeAudioProcess(inputBuffer, outputBuffer, bufferSize);
+        audioBase->invokeAudioProcess(inputs, outputs, sampleFrames);
     }
 
-    // STUB: DELAYLAMA 0x100010a0
-    void AudioBase::_process(DamPlugin* effect, float* * inputs, float* * outputs, int32_t sampleFrames) {
-        // (*effect->object->vtable->invokeAudioProcess)(inputs,outputs,sampleFrames);
-        // return;
+    // FUNCTION: DELAYLAMA 0x100010c0
+    static void _processFloat(DamPlugin* plugin, float** inputs, float** outputs, int32_t sampleFrames) {
+        AudioBase* audioBase = (AudioBase*) plugin->object;
+        audioBase->processAudio(inputs, outputs, sampleFrames);
     }
 
+    // Same order as the VST SDK's AudioEffect constructor.
     // FUNCTION: DELAYLAMA 0x100010e0
     AudioBase::AudioBase(dispatchFunc hostCallback, uint32_t presetCount, uint32_t parameterCount) {
-        // Zero out the DamPlugin structure to ensure all reserved fields are 0
-        memset(&this->plugin, 0, sizeof(DamPlugin));
-
-        // Initialize Class Members
         this->hostCallback = hostCallback;
-        this->parameterCount = parameterCount;
-        this->presetCount = presetCount;
-        this->currentPreset = 0;
         this->editor = nullptr;
-        this->sampleRate = 44100.0f;
-        this->blockSize = 1024;
+        this->presetCount = presetCount;
+        this->parameterCount = parameterCount;
+        this->currentPreset = 0;
 
-        // Initialize the DamPlugin Interface
-        this->plugin.magicNumber = 'VstP';  // "VstP" Magic Number
-        this->plugin.id          = 'NoEf';  // "NoEf" Default ID
-        this->plugin.version     = 1;
-        this->plugin.object      = this;    // Link back to this class instance
-        this->plugin.user        = nullptr;
-        
-        // IO and Parameters
-        this->plugin.inputChannelCount  = 1;
-        this->plugin.outputChannelCount = 2;
-        this->plugin.parameterCount     = parameterCount;
-        this->plugin.presetCount        = presetCount;
-        this->plugin.floatVal           = 1.0f;
-
-        // Assign Global Dispatcher/Process Function Pointers
-        this->plugin.dispatcherFunc       = _dispatcher;
-        this->plugin.processingFunc       = _processFloat;
+        memset(&this->plugin, 0, sizeof(DamPlugin));
+        this->plugin.magicNumber = 'VstP';
+        this->plugin.dispatcherFunc = _dispatcher;
+        this->plugin.processingFunc = _process;
         this->plugin.settingParameterFunc = _setParameter;
         this->plugin.gettingParameterFunc = _getParameter;
+        this->plugin.presetCount = presetCount;
+        this->plugin.parameterCount = parameterCount;
+        this->plugin.inputChannelCount = 1;
+        this->plugin.outputChannelCount = 2;
+        this->plugin.flags = 0;
+        this->plugin.reserved1 = 0;
+        this->plugin.reserved2 = 0;
+        this->plugin.pluginProcessingTime = 0;  // initialDelay
+        this->plugin.zero = 0;                  // realQualities
+        this->plugin.offQualities = 0;
+        this->plugin.ioRatio = 1.0f;
+        this->plugin.object = this;
+        this->plugin.user = nullptr;
+        this->plugin.id = 'NoEf';
+        this->plugin.version = 1;
+        this->plugin.processAudioFloat = _processFloat;
 
-        this->plugin.processAudioFloat    = _processFloat;
+        this->sampleRate = 44100.0f;
+        this->blockSize = 1024;
     }
 
-    // FUNCTION: DELAYLAMA 0x100011a0
+    // FUNCTION: DELAYLAMA 0x100011c0
     AudioBase::~AudioBase() {
-    }
-
-    // STUB: DELAYLAMA 0x100011c0
-    void AudioBase::destroy() {
-        // DelayLamaEditor *editor;
-        //
-        // this->vtable = &AudioBaseVTable_1000b148;
-        // editor = this->editor;
-        // if (editor != (DelayLamaEditor *)0x0) {
-        //   (*(editor->vtable->editorBase).destructor)(1);
-        // }
-        // return;
+        if (this->editor != nullptr)
+            delete this->editor;
     }
 
     // FUNCTION: DELAYLAMA 0x100011e0
     int32_t AudioBase::dispatchPluginCallback(int32_t targetOperation, int32_t index, int32_t value, void * data, float optional)
     {
+        int32_t v = 0;
         switch(targetOperation) {
             case pluginInitialize:
                 this->initializePlugin();
@@ -115,7 +105,8 @@ namespace Api {
                 }
                 break;
             case pluginGetCurrentPreset:
-                return this->getActivePresetIndex();
+                v = this->getActivePresetIndex();
+                break;
             case pluginSetCurrentPresetName:
                 this->setCurrentPresetName((char*)data);
                 break;
@@ -131,8 +122,6 @@ namespace Api {
             case pluginGetParameterName:
                 this->getParameterName(index, (char*)data);
                 break;
-            case pluginGetVolume:
-                return static_cast<int32_t>(this->getVolume() * 32767.0f);
             case pluginSetSampleRate:
                 this->setSampleRate(optional);
                 break;
@@ -148,14 +137,17 @@ namespace Api {
                     this->enableAudioProcessing();
                 }
                 break;
+            case pluginGetVolume:
+                v = static_cast<int32_t>(this->getVolume() * 32767.);
+                break;
             case pluginGetEditorRect:
                 if (editor != nullptr) {
-                    editor->getRect((Rect**)data);
+                    v = editor->getRect((Rect**)data);
                 }
                 break;
             case pluginOpenEditor:
                 if (editor != nullptr) {
-                    editor->open((HWND)data);
+                    v = editor->open((HWND)data);
                 }
                 break;
             case pluginCloseEditor:
@@ -169,13 +161,16 @@ namespace Api {
                 }
                 break;
             case pluginGetIdentifier:
-                return 'NvEf'; //0x4e764566;
+                v = 'NvEf'; // 0x4e764566
+                break;
             case pluginGetPresetData:
-                return this->getPluginStateData(data, index != NULL);
+                v = this->getPluginStateData(data, index != NULL);
+                break;
             case pluginSetPresetData:
-                return this->setPluginStateData(data, value, index != NULL);
+                v = this->setPluginStateData(data, value, index != NULL);
+                break;
         }
-        return 0;
+        return v;
     }
 
     // FUNCTION: DELAYLAMA 0x100015b0 FOLDED
@@ -183,9 +178,6 @@ namespace Api {
 
     // FUNCTION: DELAYLAMA 0x100015b0 FOLDED
     void AudioBase::shutdownPlugin() {}
-
-    // LIBRARY: DELAYLAMA 0x1000b090
-    void AudioBase::invokeAudioProcess(float* * inputs, float* * outputs, int32_t sampleFrames) { this->processAudio(inputs, outputs, sampleFrames); }
 
     // FUNCTION: DELAYLAMA 0x10001590
     void AudioBase::processAudio(float* * inputs, float* * outputs, int32_t sampleFrames) {}
@@ -204,11 +196,10 @@ namespace Api {
     float AudioBase::getParameterValue(int32_t parameterId) { return 0.f; }
 
     // FUNCTION: DELAYLAMA 0x10001a10
-    int32_t AudioBase::automateHostParameter(int32_t parameterId, float value) {
+    void AudioBase::automateHostParameter(int32_t parameterId, float value) {
         this->setParameterValue(parameterId, value);
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostAutomateParameter, parameterId, NULL, nullptr, value);
+        if (this->hostCallback != nullptr)
+            this->hostCallback(&this->plugin, hostAutomateParameter, parameterId, 0, nullptr, value);
     }
 
     // FUNCTION: DELAYLAMA 0x100016b0 FOLDED
@@ -259,19 +250,19 @@ namespace Api {
     void AudioBase::setOutputChannelCount(int32_t count) { this->plugin.outputChannelCount = count;}
     
     // FUNCTION: DELAYLAMA 0x10001490
-    bool AudioBase::isInputChannelConnected(int32_t channel) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t resultInt = this->hostCallback(&this->plugin, hostIsInputConnected, channel, 1, nullptr, 0.0);
-        return resultInt == NULL;
+    bool AudioBase::isOutputChannelConnected(int32_t channel) {
+        int32_t result = 0;
+        if (this->hostCallback != nullptr)
+            result = this->hostCallback(&this->plugin, hostIsInputConnected, channel, 1, nullptr, 0.0f);
+        return result ? false : true;
     }
     
     // FUNCTION: DELAYLAMA 0x10001460
-    bool AudioBase::isOutputChannelConnected(int32_t channel) { 
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t resultInt = this->hostCallback(&this->plugin, hostIsInputConnected, channel, 0, nullptr, 0.0);
-        return resultInt == NULL;
+    bool AudioBase::isInputChannelConnected(int32_t channel) {
+        int32_t result = 0;
+        if (this->hostCallback != nullptr)
+            result = this->hostCallback(&this->plugin, hostIsInputConnected, channel, 0, nullptr, 0.0f);
+        return result ? false : true;
     }
     
     // -- Plugin Properties --
@@ -297,26 +288,19 @@ namespace Api {
     }
     
     // FUNCTION: DELAYLAMA 0x10001560
-    void AudioBase::setHasEditor(bool hasEditor) {
-        if (hasEditor) this->plugin.flags |= PluginFlags::HasEditor;
-        else           this->plugin.flags &= ~PluginFlags::HasEditor;
+    void AudioBase::setProgramsAreChunks(bool programsAreChunks) {
+        if (programsAreChunks) this->plugin.flags |= PluginFlags::ProgramChunks;
+        else                   this->plugin.flags &= ~PluginFlags::ProgramChunks;
     }
     
-    // STUB: DELAYLAMA 0x10001500
+    // FUNCTION: DELAYLAMA 0x10001500
     void AudioBase::setHasSoundOutput(bool hasOutput) {
-        // uint uVar1;
-        //
-        // uVar1 = this->plugin.flags;
-        // if (hasOutput) {
-        //   this->plugin.flags = uVar1 | 8;
-        //   return;
-        // }
-        // this->plugin.flags = uVar1 & 0xfffffff7;
-        // return;
+        if (hasOutput) this->plugin.flags |= PluginFlags::CanMono;
+        else           this->plugin.flags &= ~PluginFlags::CanMono;
     }
 
     // FUNCTION: DELAYLAMA 0x100015a0
-    void AudioBase::setAudioBase(AudioBase* base) { this->plugin.audioBase = base; }
+    void AudioBase::setOfflineQualities(int32_t qualities) { this->plugin.offQualities = qualities; }
     
     // FUNCTION: DELAYLAMA 0x100015c0
     void AudioBase::setPluginProcessingTime(int32_t processingTime) { this->plugin.pluginProcessingTime = processingTime; }
@@ -326,20 +310,22 @@ namespace Api {
     
     // -- Host Communication --
     // FUNCTION: DELAYLAMA 0x100013f0
-    int32_t AudioBase::getHostApiVersion() { 
-        if (this->hostCallback == nullptr)
-            return 1;
-        int32_t hostVersionInt = this->hostCallback(&this->plugin, hostGetApiVersion, 0, NULL, nullptr, 0.0);
-        if (hostVersionInt == NULL)
-            return 1;
-        return hostVersionInt;
+    int32_t AudioBase::getHostApiVersion() {
+        int32_t version = 1;
+        if (this->hostCallback != nullptr) {
+            version = this->hostCallback(&this->plugin, hostGetApiVersion, 0, NULL, nullptr, 0.0);
+            if (version == 0)
+                version = 1;
+        }
+        return version;
     }
     
     // FUNCTION: DELAYLAMA 0x10001420
     int32_t AudioBase::getHostUniqueId() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetHostId, 0, NULL, nullptr, 0.0);
+        int32_t id = 0;
+        if (this->hostCallback != nullptr)
+            id = this->hostCallback(&this->plugin, hostGetHostId, 0, NULL, nullptr, 0.0);
+        return id;
     }
     
     // FUNCTION: DELAYLAMA 0x10001440
@@ -351,13 +337,11 @@ namespace Api {
 
     // -- String Formatting --
     // FUNCTION: DELAYLAMA 0x100015d0
-    void AudioBase::formatFloatAsDecibelString(float linearValue, char* outText) {
-        if (linearValue <= DECIBEL_THRESHOLD) {
-            ::strcpy(outText, INF_STRING);
-            return;
-        }
-        float dbValue = static_cast<float>(DECIBEL_FACTOR * ::log10(linearValue));
-        this->formatFloatToString(dbValue, outText);
+    void AudioBase::formatFloatAsDecibelString(float value, char* text) {
+        if (value <= 0)
+            strcpy(text, "  -oo   ");
+        else
+            this->formatFloatToString((float)(20. * log10(value)), text);
     }
     
     // FUNCTION: DELAYLAMA 0x10001660
@@ -373,76 +357,85 @@ namespace Api {
     }
     
     // FUNCTION: DELAYLAMA 0x100016c0
-    void AudioBase::formatSamplesAsMsString(float sampleCount, char* outText) {
-        float sampleRate = getSampleRate();               // virtual call vtable+0x88
-
-        // milliseconds = (sampleCount * 1000) / sampleRate
-        float ms = static_cast<float>((sampleCount * MS_FACTOR) / sampleRate);
-        this->formatFloatToString(ms, outText);
+    void AudioBase::formatSamplesAsMsString(float samples, char* text) {
+        this->formatFloatToString((float)(samples * 1000. / this->getSampleRate()), text);
     }
     
+    // Same algorithm as the VST SDK's float2string, including its quirk of
+    // copying " Huge!  " into the local buffer instead of the output.
     // FUNCTION: DELAYLAMA 0x10001710
-    void AudioBase::formatFloatToString(float value, char* outText) {
-        double val = static_cast<double>(value);
-        if (val >= HUGE_THRESHOLD) {
-            ::strcpy(outText, HUGE_STRING);
+    void AudioBase::formatFloatToString(float value, char* text) {
+        long c = 0, neg = 0;
+        char string[32];
+        char* s;
+        double v, integ, i10, mantissa, m10, ten = 10.;
+
+        v = (double)value;
+        if (v < 0) {
+            neg = 1;
+            value = -value;
+            v = -v;
+            c++;
+            if (v > 9999999.) {
+                strcpy(string, " Huge!  ");
+                return;
+            }
+        }
+        else if (v > 99999999.) {
+            strcpy(string, " Huge!  ");
             return;
         }
 
-        bool negative = (val < 0.0);
-        if (negative)
-            val = -val;
+        s = string + 31;
+        *s-- = 0;
+        *s-- = '.';
+        c++;
 
-        double intPart = ::floor(val);
-        double fracPart = val - intPart;
+        integ = floor(v);
+        i10 = fmod(integ, ten);
+        *s-- = (char)((long)i10 + '0');
+        integ /= ten;
+        c++;
+        while (integ >= 1. && c < 8) {
+            i10 = fmod(integ, ten);
+            *s-- = (char)((long)i10 + '0');
+            integ /= ten;
+            c++;
+        }
+        if (neg)
+            *s-- = '-';
+        strcpy(text, s + 1);
+        if (c >= 8)
+            return;
 
-        char intBuffer[32];
-        char* p = intBuffer + sizeof(intBuffer) - 1;
-        *p = '\0';
-
-        if (intPart == 0.0) {
-            *--p = '0';
-        } else {
-            while (intPart >= 1.0) {
-                double digit = ::fmod(intPart, TEN);
-                int d = static_cast<int>(digit);
-                *--p = static_cast<char>('0' + d);
-                intPart = ::floor(intPart * ONE_TENTH);
+        s = string + 31;
+        *s-- = 0;
+        mantissa = fmod(v, 1.);
+        mantissa *= pow(ten, (double)(8 - c));
+        while (c < 8) {
+            if (mantissa <= 0)
+                *s-- = '0';
+            else {
+                m10 = fmod(mantissa, ten);
+                *s-- = (char)((long)m10 + '0');
+                mantissa /= 10.;
             }
+            c++;
         }
-
-        char* out = outText;
-        if (negative)
-            *out++ = '-';
-        ::strcpy(out, p);
-        out += ::strlen(p);
-
-        *out++ = '.';
-
-        fracPart *= TEN;
-        int digit = static_cast<int>(fracPart);
-        *out++ = static_cast<char>('0' + digit);
-        fracPart -= digit;
-        int digitCount = 1;
-
-        while (fracPart > 0.0 && digitCount < MAX_DIGITS) {
-            fracPart *= TEN;
-            digit = static_cast<int>(fracPart);
-            *out++ = static_cast<char>('0' + digit);
-            fracPart -= digit;
-            ++digitCount;
-        }
-
-        *out = '\0';
+        strcat(text, s + 1);
     }
     
     // FUNCTION: DELAYLAMA 0x10001990
-    void AudioBase::formatIntToString(int32_t value, char* outSmall, int32_t unused1, int32_t unused2, char* outLarge) {
-        if (value >= INT_HUGE_LIMIT) {
-            ::strcpy(outSmall, HUGE_STRING);
-        } else {
-            ::sprintf(outSmall, "%d", value);
+    void AudioBase::formatIntToString(int32_t value, char* text) {
+        char string[32];
+
+        if (value >= 100000000) {
+            strcpy(text, " Huge!  ");
+            return;
         }
+        sprintf(string, "%7d", value);
+        string[8] = 0;
+        strcpy(text, string);
     }
 
     // -- Unused --

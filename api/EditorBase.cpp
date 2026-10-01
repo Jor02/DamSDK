@@ -8,79 +8,114 @@ namespace Api {
     // GLOBAL: DELAYLAMA 0x1000d874
     int GLOBAL_KNOB_MODE = 0;
 
+    // GLOBAL: DELAYLAMA 0x1000d828
+    MSG g_idleMessage;
+
+    // -- EditorInterface (VST AEffEditor) default implementations --
+
+    // FUNCTION: DELAYLAMA 0x10006710
+    int32_t EditorInterface::getRect(Rect** outRect) {
+        *outRect = 0;
+        return 0;
+    }
+
+    // FUNCTION: DELAYLAMA 0x10006720
+    int32_t EditorInterface::open(HWND hParent) {
+        this->hParent = hParent;
+        return 0;
+    }
+
+    // FUNCTION: DELAYLAMA 0x100015b0 FOLDED
+    void EditorInterface::close() {}
+
+    // FUNCTION: DELAYLAMA 0x10006730
+    void EditorInterface::onIdle() {
+        if (this->needsRedraw) {
+            this->needsRedraw = 0;
+            this->update();
+        }
+    }
+
+    // FUNCTION: DELAYLAMA 0x100015b0 FOLDED
+    void EditorInterface::update() {}
+
+    // FUNCTION: DELAYLAMA 0x10003730
+    void EditorInterface::invalidate() {
+        this->needsRedraw = 1;
+    }
+
+    // FUNCTION: DELAYLAMA 0x10003810 FOLDED
+    int32_t EditorInterface::keyDown(KeyCode* keycode) { return -1; }
+
+    // FUNCTION: DELAYLAMA 0x10003810 FOLDED
+    int32_t EditorInterface::keyUp(KeyCode* keycode) { return -1; }
+
+    // FUNCTION: DELAYLAMA 0x10006750 FOLDED
+    int32_t EditorInterface::setKnobMode(int32_t mode) { return 0; }
+
+    // FUNCTION: DELAYLAMA 0x10006760 FOLDED
+    bool EditorInterface::onMouseWheel(float wheelDelta) { return false; }
+
+    // -- EditorBase (VSTGUI AEffGUIEditor) --
+
     // FUNCTION: DELAYLAMA 0x10006680
-    EditorBase::EditorBase(AudioBaseExtended* mainPlugin) {
-        this->mainPlugin = mainPlugin;
-        this->needsRedraw = false;
+    EditorBase::EditorBase(AudioBaseExtended* plugin) : EditorInterface(plugin) {
         this->window = nullptr;
         this->isInIdleUpdate = false;
 
-        if (this == nullptr) {
-            mainPlugin->plugin.flags &= ~PluginFlags::HasEditor;
-        }
-        else {
-            mainPlugin->plugin.flags |= PluginFlags::HasEditor;
-        }
+        // effect->setEditor(this)
+        plugin->editor = this;
+        if (this != nullptr)
+            plugin->plugin.flags |= PluginFlags::HasEditor;
+        else
+            plugin->plugin.flags &= ~PluginFlags::HasEditor;
 
         this->hParent = nullptr;
-        this->lastIdleTick = GetTickCount();
+        this->lastIdleTick = this->getTicks();
         OleInitialize(NULL);
     }
 
-    // FUNCTION: DELAYLAMA 0x10006790
-    EditorBase::~EditorBase() {}
+    // FUNCTION: DELAYLAMA 0x100068b0
+    DWORD EditorBase::getTicks() {
+        return GetTickCount();
+    }
+
+    // FUNCTION: DELAYLAMA 0x100067b0
+    EditorBase::~EditorBase() {
+        OleUninitialize();
+    }
 
     // FUNCTION: DELAYLAMA 0x100067f0
-    void EditorBase::open(HWND hParent) {
+    int32_t EditorBase::open(HWND hParent) {
         this->invalidate();
         this->hParent = hParent;
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10006940
-    void EditorBase::getRect(Rect** outRect) {
+    int32_t EditorBase::getRect(Rect** outRect) {
         *outRect = &this->rect;
-    }
-
-    // STUB: DELAYLAMA 0x100015b0 FOLDED
-    void EditorBase::close() {
-
+        return 1;
     }
 
     // FUNCTION: DELAYLAMA 0x10006810
     void EditorBase::onIdle() {
-        if (this->isInIdleUpdate == false) {
-            if (this->needsRedraw != false) {
+        if (!this->isInIdleUpdate) {
+            if (this->needsRedraw) {
                 this->needsRedraw = false;
-                //this->unimplemented();
+                this->update();
             }
-
             if (this->window != nullptr) {
                 this->window->refresh();
             }
         }
     }
 
-    // FUNCTION: DELAYLAMA 0x10003810 FOLDED
-    int32_t EditorBase::keyDown(KeyCode* keycode) {
-        return -1;
-    }
     
-    // FUNCTION: DELAYLAMA 0x10003810 FOLDED
-    int32_t EditorBase::keyUp(KeyCode* keycode) {
-        return -1;
-    }
-
     // FUNCTION: DELAYLAMA 0x10006840
-    void EditorBase::setKnobMode(int32_t mode) {
+    int32_t EditorBase::setKnobMode(int32_t mode) {
         GLOBAL_KNOB_MODE = mode;
-    }
-
-    // STUB: DELAYLAMA 0x100067b0
-    void EditorBase::destroy() {
-        // this->vtable = &EditorBaseVTable_1000bb80;
-        // OleUninitialize();
-        // this->vtable = (EditorBaseVTable *)&UnusedClassVTable_1000bbb8;
-        // return;
+        return 1;
     }
 
     // FUNCTION: DELAYLAMA 0x10006ae0
@@ -89,7 +124,7 @@ namespace Api {
     }
 
     // FUNCTION: DELAYLAMA 0x100067d0
-    void EditorBase::draw() {
+    void EditorBase::draw(Rect* rect) {
         if (this->window != nullptr) {
             this->window->drawControlOrSelf(NULL);
         }
@@ -97,7 +132,7 @@ namespace Api {
 
     // FUNCTION: DELAYLAMA 0x100068c0
     void EditorBase::idleHandler() {
-        DWORD currentTick = GetTickCount();
+        DWORD currentTick = this->getTicks();
 
         this->onIdle();
         
@@ -109,11 +144,8 @@ namespace Api {
             }
         }
 
-        MSG msg;
-        if (PeekMessage(&msg, nullptr, WM_PAINT, WM_PAINT, PM_REMOVE))
-        {
-            DispatchMessage(&msg);
-        }
+        if (PeekMessage(&g_idleMessage, nullptr, WM_PAINT, WM_PAINT, PM_REMOVE))
+            DispatchMessage(&g_idleMessage);
     
         this->lastIdleTick = currentTick;
         isInIdleUpdate = true;
@@ -124,16 +156,11 @@ namespace Api {
         isInIdleUpdate = false;
     }
 
-    // FUNCTION: DELAYLAMA 0x10003730
-    void EditorBase::invalidate() {
-        this->needsRedraw = true;
-    }
-
     // FUNCTION: DELAYLAMA 0x10006860
     bool EditorBase::onMouseWheel(float wheelDelta) {
         if (this->window != nullptr) {
-            this->window->onMouseWheel(nullptr, nullptr, wheelDelta);
-            return true;
+            POINT mousePos = {0, 0};
+            return this->window->onMouseWheel(nullptr, &mousePos, wheelDelta);
         }
         return false;
     }

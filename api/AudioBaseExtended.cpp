@@ -6,128 +6,167 @@ namespace Api {
     // FUNCTION: DELAYLAMA 0x10001a50
     AudioBaseExtended::AudioBaseExtended(dispatchFunc hostCallback, int32_t presetCount, int32_t parameterCount) : AudioBase(hostCallback, presetCount, parameterCount) {}
     
-    // FUNCTION: DELAYLAMA 0x10001a80
+    // FUNCTION: DELAYLAMA 0x10001aa0
     AudioBaseExtended::~AudioBaseExtended() {}
 
     // FUNCTION: DELAYLAMA 0x10001ab0
     int32_t AudioBaseExtended::dispatchPluginCallback(int32_t targetOperation, int32_t index, int32_t value, void *data, float optional) {
+        // Same shape as the VST 2.x AudioEffectX dispatcher: one result, cases in opcode order.
+        int32_t v = 0;
         switch (targetOperation) {
             case pluginProcessEvents:
-                this->processEvents(data);
+                v = this->processEvents(data);
                 break;
             case pluginParameterSupportsAutomation:
-                return this->canParameterBeAutomated(index);
+                v = this->canParameterBeAutomated(index) ? 1 : 0;
+                break;
             case pluginGetParameterNameByIndex:
-                this->getParameterName(index, (char*)data);
+                v = this->getParameter(index, (char*)data) ? 1 : 0;
                 break;
             case pluginGetPresetCategoryCount:
-                return this->getPresetCategories();
+                v = this->getPresetCategories();
+                break;
             case pluginGetPresetNameByIndex:
-                return this->getPresetNameByIndex(value, index, (char*)data);
+                v = this->getPresetNameByIndex(value, index, (char*)data) ? 1 : 0;
+                break;
             case pluginCopyPreset:
-                this->copyPreset(index);
+                v = this->copyPreset(index) ? 1 : 0;
                 break;
             case pluginConnectInputChannel:
-                this->connectInputBus(index, value != NULL);
-                return 1;
+                this->connectInputBus(index, value != 0);
+                v = 1;
+                break;
             case pluginConnectOutputChannel:
-                this->connectOutputBus(index, value != NULL);
-                return 1;
+                this->connectOutputBus(index, value != 0);
+                v = 1;
+                break;
             case pluginGetPluginInputSettings:
-                return this->getInputBusProperties(index, (char*)data);
+                v = this->getInputBusProperties(index, (char*)data) ? 1 : 0;
+                break;
             case pluginGetPluginOutputSettings:
-                return this->getOutputBusProperties(index, (char*)data);
+                v = this->getOutputBusProperties(index, (char*)data) ? 1 : 0;
+                break;
             case pluginGetPluginCategory:
-                return this->getPluginCategory();
+                v = this->getPluginCategory();
+                break;
             case pluginGetCurrentSamplePosition:
-                return this->getTransportInfo();
+                v = this->getTransportInfo();
+                break;
             case pluginGetOutputBuffer:
-                return this->getOutputBuffer();
+                v = this->getOutputBuffer();
+                break;
             case pluginNotifyOffline:
-                return this->onOfflineNotify(data, value, index != NULL);
+                v = this->onOfflineNotify(data, value, index != 0);
+                break;
             case pluginPrepareOfflineRun:
-                return this->prepareOffline(data, value);
+                v = this->prepareOffline(data, value);
+                break;
             case pluginRunOffline:
-                return this->runOffline(data, value);
-            case pluginProcessVarIo:
-                return this->processVarIo(data);
+                v = this->runOffline(data, value);
+                break;
             case pluginSetSpeakerArrangement:
-                return this->setOutputSpeakerArrangement(value, data);
+                v = this->setOutputSpeakerArrangement(value, data) ? 1 : 0;
+                break;
+            case pluginProcessVarIo:
+                v = this->processVarIo(data) ? 1 : 0;
+                break;
             case pluginSetAudioSettings:
                 this->setAudioSettings(value, optional);
-                return 1;
+                v = 1;
+                break;
             case pluginSetBypassState:
-                return this->setBypass(value != NULL);
+                v = this->setBypass(value != 0) ? 1 : 0;
+                break;
             case pluginGetPluginName:
-                return this->getPluginName((char*) data);
+                v = this->getPluginName((char*)data) ? 1 : 0;
+                break;
             case pluginGetErrorText:
-                return this->getErrorText((char*) data);
+                v = this->getErrorText((char*)data) ? 1 : 0;
+                break;
             case pluginGetCompanyName:
-                return this->getHostCompanyString((char*) data);
+                v = this->getCompanyName((char*)data) ? 1 : 0;
+                break;
             case pluginGetProductName:
-                return this->getHostProductString((char*) data);
+                v = this->getProductName((char*)data) ? 1 : 0;
+                break;
             case pluginGetCompanyVersion:
-                return this->getCompanyVersion();
-            case plugingSpecific:
-                return this->companySpecific(index, value, data, optional);
+                v = this->getCompanyVersion();
+                break;
+            case pluginSpecific:
+                v = this->companySpecific(index, value, data, optional);
+                break;
             case pluginSupportsFeature:
-                return this->pluginSupports((char*) data);
-            case pluginGetTailLength:
-                return this->getTailLengthSamples();
-            case pluginIdling:
-                return this->processIdle();
+                v = this->pluginSupports((char*)data);
+                break;
             case pluginGetIcon:
-                return this->getIcon();
+                v = (int32_t)this->getIcon();
+                break;
             case pluginSetViewPosition:
-                return this->setViewPosition(index, value);
+                v = this->setViewPosition(index, value) ? 1 : 0;
+                break;
+            case pluginGetTailLength:
+                v = this->getTailLengthSamples();
+                break;
+            case pluginIdling:
+                v = this->processIdle();
+                break;
             case pluginGetParameterSettings:
-                return this->getParameterProperties(index, data);
+                v = this->getParameterProperties(index, data) ? 1 : 0;
+                break;
             case pluginRequiresKeys:
-                return !this->editorRequiresKeystroke();
+                v = this->editorRequiresKeystroke() ? 0 : 1;
+                break;
             case pluginGetDamVersion:
-                return this->getDamVersion();
+                v = this->getDamVersion();
+                break;
             case pluginEditorKeyDownEvent:
                 if (this->editor != nullptr) {
                     KeyCode keyCode;
                     keyCode.asciiCharacter = index;
                     keyCode.vkValue = (unsigned char)value;
                     keyCode.modifiers = (unsigned char)optional;
-                    return editor->keyDown(&keyCode);
+                    v = this->editor->keyDown(&keyCode);
                 }
                 break;
             case pluginEditorKeyUpEvent:
-                if (editor != nullptr) {
+                if (this->editor != nullptr) {
                     KeyCode keyCode;
                     keyCode.asciiCharacter = index;
                     keyCode.vkValue = (unsigned char)value;
                     keyCode.modifiers = (unsigned char)optional;
-                    return editor->keyUp(&keyCode);
+                    v = this->editor->keyUp(&keyCode);
                 }
                 break;
             case pluginSetKnobMode:
-                if (editor != nullptr) {
-                    editor->setKnobMode(value);
-                }
+                if (this->editor != nullptr)
+                    v = this->editor->setKnobMode(value);
                 break;
             case pluginGetMidiPresetName:
-                return this->getMidiProgramName(index, (char *) data);
+                v = this->getMidiProgramName(index, (char*)data);
+                break;
             case pluginGetMidiProgram:
-                return this->getMidiProgram(index, data);
+                v = this->getMidiProgram(index, data);
+                break;
             case pluginGetCategoryOfMidiProgram:
-                return this->getMidiProgramCategory(index, (char *) data);
+                v = this->getMidiProgramCategory(index, (char*)data);
+                break;
             case pluginHasMidiProgramChanged:
-                return this->hasMidiProgramChanged(index);
+                v = this->hasMidiProgramChanged(index) ? 1 : 0;
+                break;
             case pluginNameOfMidiKey:
-                return this->getMidiKeyName(index, (char *) data);
-            case pluginStartSettigMidiProgram:
-                return this->beginSetMidiProgram();
+                v = this->getMidiKeyName(index, (char*)data) ? 1 : 0;
+                break;
+            case pluginStartSettingMidiProgram:
+                v = this->beginSetMidiProgram() ? 1 : 0;
+                break;
             case pluginStopSettingMidiProgram:
-                return this->endSetMidiProgram();
+                v = this->endSetMidiProgram() ? 1 : 0;
+                break;
             default:
-                return AudioBase::dispatchPluginCallback(targetOperation, index, value, data, optional);
+                v = AudioBase::dispatchPluginCallback(targetOperation, index, value, data, optional);
+                break;
         }
-
-        return 0;
+        return v;
     }
 
     // --- Editor & UI ---
@@ -136,25 +175,26 @@ namespace Api {
 
     // FUNCTION: DELAYLAMA 0x100026d0
     int32_t AudioBaseExtended::openWindow(HWND windowHandle) {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostOpenPluginEditor, 0, NULL, windowHandle, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostOpenPluginEditor, 0, NULL, windowHandle, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002700
     bool AudioBaseExtended::closePluginEditorOnHost(void* windowHandle) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t output = this->hostCallback(&this->plugin, hostClosePluginEditor, 0, NULL, windowHandle, 0.0f); 
-        return output != NULL;
+        if (this->hostCallback != nullptr) {
+            int32_t output = this->hostCallback(&this->plugin, hostClosePluginEditor, 0, NULL, windowHandle, 0.0f);
+            return output != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x10002750
     bool AudioBaseExtended::requestHostEditorRefresh() {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t output = this->hostCallback(&this->plugin, hostRequestEditorRefresh, 0, NULL, nullptr, 0.0f); 
-        return output != NULL;
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostRequestEditorRefresh, 0, 0, nullptr, 0.0f) ? true : false;
+        return false;
     }
     
     // FUNCTION: DELAYLAMA 0x100022d0 FOLDED
@@ -198,116 +238,122 @@ namespace Api {
     // --- Advanced Host Communication ---
     // FUNCTION: DELAYLAMA 0x100020a0
     int32_t AudioBaseExtended::getHostTransportTime(int32_t flags) {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetTransportTimeInfo, 0, flags, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetTransportTimeInfo, 0, flags, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x100020d0
     int32_t AudioBaseExtended::getHostTempoAtSample(int32_t pos) {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetTempoAtSamplePosition, 0, pos, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetTempoAtSamplePosition, 0, pos, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002730
     char* AudioBaseExtended::getHostWorkingDirectory() {
-        if (this->hostCallback == nullptr)
-            return nullptr;
-        return (char *)this->hostCallback(&this->plugin, hostGetHostWorkingDirectory, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return (char *)this->hostCallback(&this->plugin, hostGetHostWorkingDirectory, 0, NULL, nullptr, 0.0f);
+        }
+        return nullptr;
     }
 
     // FUNCTION: DELAYLAMA 0x100027e0
     bool AudioBaseExtended::openFileDialogOnHost(char* outText) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostGetHostWorkingDirectory, 0, NULL, outText, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr && outText != nullptr)
+            return this->hostCallback(&this->plugin, hostOpenFileDialog, 0, 0, outText, 0.0f) ? true : false;
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100026b0
     int32_t AudioBaseExtended::getHostLanguage() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetHostLanguage, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetHostLanguage, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002590
     bool AudioBaseExtended::getHostCompanyString(char* outText) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostGetHostCompanyName, 0, NULL, outText, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostGetHostCompanyName, 0, NULL, outText, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100025c0
     bool AudioBaseExtended::getHostProductString(char* outText) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostGetHostProductName, 0, NULL, outText, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostGetHostProductName, 0, NULL, outText, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100025f0
     int32_t AudioBaseExtended::getHostCompanyVersion() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetHostVersion, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetHostVersion, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002640
-    bool AudioBaseExtended::hostSupports(char* target) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostSupportsFeature, 0, NULL, target, 0.0f);
-        return result != NULL;
+    int32_t AudioBaseExtended::hostSupports(char* target) {
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostSupportsFeature, 0, 0, target, 0.0f) != 0;
+        return 0;
     }
 
     // -- Advanced Parameters --
     // FUNCTION: DELAYLAMA 0x10002150
     int32_t AudioBaseExtended::getHostAutomatableParameterCount() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetAutomatableParameterCount, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetAutomatableParameterCount, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002170
     int32_t AudioBaseExtended::getParameterStepSize() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetParameterStepSize, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetParameterStepSize, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10004670 FOLDED
     bool AudioBaseExtended::canParameterBeAutomated(int32_t parameterId) { return true; }
 
     // FUNCTION: DELAYLAMA 0x100022d0 FOLDED
-    int32_t AudioBaseExtended::getParameter() { return 0; }
+    bool AudioBaseExtended::getParameter(int32_t index, char* text) { return false; }
 
     // FUNCTION: DELAYLAMA 0x100022d0 FOLDED
     bool AudioBaseExtended::getParameterProperties(int32_t parameterId, void * data) { return false; }
 
     // FUNCTION: DELAYLAMA 0x10002780
     bool AudioBaseExtended::notifyHostClientBeginningParameterEdit(int32_t parameterId) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostBeginParameterEdit, parameterId, NULL, nullptr, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostBeginParameterEdit, parameterId, 0, nullptr, 0.0f) ? true : false;
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100027b0
     bool AudioBaseExtended::notifyHostClientEndingParameterEdit(int32_t parameterId) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostEndParameterEdit, parameterId, NULL, nullptr, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostEndParameterEdit, parameterId, 0, nullptr, 0.0f) ? true : false;
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100023d0
     int32_t AudioBaseExtended::getAutomationState() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetAutomationPlaybackState, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetAutomationPlaybackState, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // -- Advanced Presets --
@@ -323,31 +369,34 @@ namespace Api {
     // -- Routing --
     // FUNCTION: DELAYLAMA 0x10002190
     bool AudioBaseExtended::notifyHostIoConfigurationChanged() {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostNotifyIOConfigurationChanged, 0, NULL, nullptr, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostNotifyIOConfigurationChanged, 0, NULL, nullptr, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100022b0
     int32_t AudioBaseExtended::getHostInputLatencySamples() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetInputLatencySamples, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetInputLatencySamples, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x100022e0
     int32_t AudioBaseExtended::getHostOutputLatencySamples() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetOutputLatencySamples, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetOutputLatencySamples, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10001540 FOLDED
-    void AudioBaseExtended::connectInputBus(int32_t index, int32_t value) {}
+    void AudioBaseExtended::connectInputBus(int32_t index, bool connected) {}
 
     // FUNCTION: DELAYLAMA 0x10001540 FOLDED
-    void AudioBaseExtended::connectOutputBus(int32_t index, int32_t value) {}
+    void AudioBaseExtended::connectOutputBus(int32_t index, bool connected) {}
 
     // FUNCTION: DELAYLAMA 0x100022d0 FOLDED
     bool AudioBaseExtended::getInputBusProperties(int32_t index,char *properties) { return false; }
@@ -356,15 +405,16 @@ namespace Api {
     bool AudioBaseExtended::getOutputBusProperties(int32_t index,char *properties) { return false; }
 
     // FUNCTION: DELAYLAMA 0x10002560
-    bool AudioBaseExtended::getOutputSpeakerArrangement(int32_t arrangement, void* param_2) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostGetOutputChannelLayout, 0, arrangement, param_2, 0.0f);
-        return result != NULL;
+    bool AudioBaseExtended::getOutputSpeakerArrangement(int32_t arrangement, void* speakers) {
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostGetOutputChannelLayout, 0, arrangement, speakers, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100022d0 FOLDED
-    bool AudioBaseExtended::setOutputSpeakerArrangement(int32_t arrangement, void* param_2) { return false; }
+    bool AudioBaseExtended::setOutputSpeakerArrangement(int32_t arrangement, void* speakers) { return false; }
 
     // FUNCTION: DELAYLAMA 0x100021c0
     void AudioBaseExtended::setAudioSettings(int32_t hostBlockSize, float sampleRate) {
@@ -373,17 +423,18 @@ namespace Api {
     }
 
     // FUNCTION: DELAYLAMA 0x10002540
-    int32_t AudioBaseExtended::setHostOutputSampleRate(float sampleRate) {
+    void AudioBaseExtended::setHostOutputSampleRate(float sampleRate) {
         if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostSetOutputSampleRate, 0, NULL, nullptr, sampleRate);
+            return;
+        this->hostCallback(&this->plugin, hostSetOutputSampleRate, 0, NULL, nullptr, sampleRate);
     }
 
     // FUNCTION: DELAYLAMA 0x10002240
-    double* AudioBaseExtended::getHostSampleRate() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return (double *) this->hostCallback(&this->plugin, hostGetSampleRate, 0, NULL, nullptr, 0.0f);
+    double AudioBaseExtended::getHostSampleRate() {
+        // Ask the host to update our sample rate, then return it.
+        if (this->hostCallback != nullptr)
+            this->hostCallback(&this->plugin, hostGetSampleRate, 0, 0, nullptr, 0.0f);
+        return this->sampleRate;
     }
 
     // -- Offline Processing --
@@ -394,27 +445,30 @@ namespace Api {
     }
 
     // FUNCTION: DELAYLAMA 0x100024a0
-    bool AudioBaseExtended::startOfflineProcessing(void* param_1, int32_t param_2, int32_t param_3) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostBeginOfflineProcessing, param_3, param_2, param_1, 0.0f);
-        return result != NULL;
+    bool AudioBaseExtended::startOfflineProcessing(void* audioFiles, int32_t numAudioFiles, int32_t numNewAudioFiles) {
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostBeginOfflineProcessing, numNewAudioFiles, numAudioFiles, audioFiles, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x10002430
     bool AudioBaseExtended::offlineRead(float** audioBuffers, int32_t sampleFrames, bool readSource) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostOfflineReadAudio, readSource, sampleFrames, audioBuffers, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostOfflineReadAudio, readSource, sampleFrames, audioBuffers, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x10002470
-    bool AudioBaseExtended::offlineWrite(float** audioBuffers, int32_t sampleFrames) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostOfflineWriteAudio, 0, 0, audioBuffers, 0.0f);
-        return result != NULL;
+    bool AudioBaseExtended::offlineWrite(float** audioBuffers, int32_t option) {
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostOfflineWriteAudio, 0, option, audioBuffers, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x10002090 FOLDED
@@ -427,19 +481,21 @@ namespace Api {
     bool AudioBaseExtended::runOffline(void *data, int32_t value) { return false; }
 
     // FUNCTION: DELAYLAMA 0x100024e0
-    bool AudioBaseExtended::getCurrentPass() {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostGetOfflineProcessingPassIndex, 0, 0, nullptr, 0.0f);
-        return result != NULL;
+    int32_t AudioBaseExtended::getCurrentPass() {
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostGetOfflineProcessingPassIndex, 0, 0, nullptr, 0.0f);
+            return result != NULL;
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002510
-    bool AudioBaseExtended::getCurrentMetaPass() {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostGetOfflineProcessingSubPassIndex, 0, 0, nullptr, 0.0f);
-        return result != NULL;
+    int32_t AudioBaseExtended::getCurrentMetaPass() {
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostGetOfflineProcessingSubPassIndex, 0, 0, nullptr, 0.0f);
+            return result != NULL;
+        }
+        return 0;
     }
 
     // -- Plugin Metadata --
@@ -467,14 +523,14 @@ namespace Api {
     // FUNCTION: DELAYLAMA 0x10002340
     int32_t AudioBaseExtended::getDamVersion() { return 2200; }
 
-    // FUNCTION: DELAYLAMA 0x100031a0
-    bool AudioBaseExtended::pluginSupports(char* target) {
-        if (strcmp(target, "receiveDamEvents") == 0 || strcmp(target, "receiveVstEvents") == 0) return 1;
-        if (strcmp(target, "receiveDamMidiEvent") == 0 || strcmp(target, "receiveVstMidiEvent") == 0) return 1;
-        if (strcmp(target, "sendDamMidiEvent") == 0 || strcmp(target, "sendVstMidiEvent") == 0) return 1;
-        if (strcmp(target, "sendDamEvents") == 0 || strcmp(target, "sendVstEvents") == 0) return 1;
-        return 0;
-    }
+    // FUNCTION: DELAYLAMA 0x10006750 FOLDED
+    int32_t AudioBaseExtended::pluginSupports(char* target) { return 0; }
+
+    // FUNCTION: DELAYLAMA 0x10002140 FOLDED
+    int32_t AudioBaseExtended::getOfflinePassCount() { return 0; }
+
+    // FUNCTION: DELAYLAMA 0x10002140 FOLDED
+    int32_t AudioBaseExtended::getOfflineMetaPassCount() { return 0; }
     
     // FUNCTION: DELAYLAMA 0x10002670
     void AudioBaseExtended::setIsSynthesizer(bool isSynthesizer) {
@@ -483,9 +539,9 @@ namespace Api {
     }
 
     // FUNCTION: DELAYLAMA 0x10002690
-    void AudioBaseExtended::setCanProcessReplacing(bool canProcessReplacing) {
-        if (canProcessReplacing) this->plugin.flags |= PluginFlags::IsNoRealTime;
-        else                     this->plugin.flags &= ~PluginFlags::IsNoRealTime;
+    void AudioBaseExtended::setNoTail(bool noTail) {
+        if (noTail) this->plugin.flags |= PluginFlags::NoSoundInStop;
+        else        this->plugin.flags &= ~PluginFlags::NoSoundInStop;
     }
 
     // FUNCTION: DELAYLAMA 0x100023f0
@@ -499,16 +555,18 @@ namespace Api {
 
     // FUNCTION: DELAYLAMA 0x10002390
     int32_t AudioBaseExtended::willReplaceOrAccumulate() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostWillProcessInPlace, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostWillProcessInPlace, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x100023b0
     int32_t AudioBaseExtended::getCurrentProcessLevel() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetProcessingContextLevel, 0, NULL, nullptr, 0.0f);
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostGetProcessingContextLevel, 0, NULL, nullptr, 0.0f);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002140 FOLDED
@@ -517,38 +575,38 @@ namespace Api {
     // -- Workflow --
     // FUNCTION: DELAYLAMA 0x10002210
     bool AudioBaseExtended::sizeWindow(int32_t width, int32_t height) {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin,hostResizeEditorWindow, 0, 0, nullptr, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostResizeEditorWindow, width, height, nullptr, 0.0f) != 0;
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x100021e0
     bool AudioBaseExtended::needIdle() {
-        if (this->hostCallback == nullptr)
-            return false;
-        int32_t result = this->hostCallback(&this->plugin, hostRequestIdleProcessing, 0, 0, nullptr, 0.0f);
-        return result != NULL;
+        if (this->hostCallback != nullptr) {
+            int32_t result = this->hostCallback(&this->plugin, hostRequestIdleProcessing, 0, 0, nullptr, 0.0f);
+            return result != NULL;
+        }
+        return false;
     }
 
     // FUNCTION: DELAYLAMA 0x10002140 FOLDED
-    bool AudioBaseExtended::processIdle() { return false; }
+    int32_t AudioBaseExtended::processIdle() { return 0; }
 
     // FUNCTION: DELAYLAMA 0x10002300 FOLDED
     bool AudioBaseExtended::editorRequiresKeystroke() { return false; }
 
     // FUNCTION: DELAYLAMA 0x10002310
-    int32_t AudioBaseExtended::getPreviousPlugin() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetPreviousPluginInstance, 0, NULL, nullptr, 0.0f);
+    int32_t AudioBaseExtended::getPreviousPlugin(int32_t input) {
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostGetPreviousPluginInstance, 0, 0, nullptr, 0.0f);
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002350
-    int32_t AudioBaseExtended::getNextPlugin() {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostGetNextPluginInstance, 0, NULL, nullptr, 0.0f);
+    int32_t AudioBaseExtended::getNextPlugin(int32_t output) {
+        if (this->hostCallback != nullptr)
+            return this->hostCallback(&this->plugin, hostGetNextPluginInstance, 0, 0, nullptr, 0.0f);
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002140 FOLDED
@@ -565,16 +623,10 @@ namespace Api {
 
     // FUNCTION: DELAYLAMA 0x10002610
     intptr_t AudioBaseExtended::callCompanySpecific(int32_t index, int32_t valueHigh, float valueLow, void* context) {
-        if (this->hostCallback == nullptr)
-            return 0;
-        return this->hostCallback(&this->plugin, hostHandleCompanySpecific, index, valueHigh, context, valueLow);
-    }
-
-    // STUB: DELAYLAMA 0x10001aa0
-    void AudioBaseExtended::destroy() {
-        // this->vtable = &AudioBaseExtendedVTable_1000b250;
-        // AudioBase::destroy((AudioBase *)this);
-        // return;
+        if (this->hostCallback != nullptr) {
+            return this->hostCallback(&this->plugin, hostHandleCompanySpecific, index, valueHigh, context, valueLow);
+        }
+        return 0;
     }
 
     // FUNCTION: DELAYLAMA 0x10002280
@@ -584,8 +636,8 @@ namespace Api {
         return this->blockSize;
     }
 
-    // -- Empty/Unknown Functions --
+    // AudioEffectX::getChannelParameter (not used by Delay Lama)
     // FUNCTION: DELAYLAMA 0x10002050
-    float AudioBaseExtended::returnZeroFloat() { return 0.f; }
+    float AudioBaseExtended::getChannelParameter(int32_t channel, int32_t index) { return 0.f; }
 }
 }

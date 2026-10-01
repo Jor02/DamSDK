@@ -9,12 +9,12 @@ namespace DamSDK {
 namespace Gui {
 namespace Controls {
 
-    // VTABLE: DELAYLAMA 0x1000be60
+    // VTABLE: DELAYLAMA 0x1000bd78
     class RotaryControl : public Control {
         public:
             POINT srcPoint;
-            Api::ColorRGBA indicatorHighlightColor;
-            Api::ColorRGBA indicatorShadowColor;
+            Api::Color indicatorHighlightColor;
+            Api::Color indicatorShadowColor;
             Platform::Windows::Bitmap *bmp;
             int knobRadius;
             float startAngle;
@@ -26,25 +26,27 @@ namespace Controls {
             float fineTuneDivider;
 
         public:
-            RotaryControl(RECT* pRect, callbackCallback callback, int parameterId, Platform::Windows::Bitmap* bmp1, Platform::Windows::Bitmap* bmp2, POINT* srcPoint);
+            RotaryControl(RECT* pRect, ControlListener* listener, int parameterId, Platform::Windows::Bitmap* bmp1, Platform::Windows::Bitmap* bmp2, POINT* srcPoint);
             ~RotaryControl();
-            void destroy();
             virtual void onDraw(Platform::Windows::GDIDrawingContext* drawingContext) override;
-            void drawIndicator(Platform::Windows::GDIDrawingContext* drawingContext);
             virtual void onMouseDown(Platform::Windows::GDIDrawingContext* drawingContext, POINT* mousePos) override;
-            void setStartAngle(float startAngle);
-            void setTotalRange(float totalRange);
+
+            // New virtual functions, in the original vtable order.
+            virtual void drawIndicator(Platform::Windows::GDIDrawingContext* drawingContext);
+            virtual void setStartAngle(float startAngle);
+            virtual float getStartAngle();
+            virtual void setTotalRange(float totalRange);
+            virtual float getTotalRange();
+            virtual void calculateXYFromValue(POINT* outPoint);
+            virtual float calculateAngleFromPoint(POINT* point);
+            virtual void setKnobRadius(int radius);
+            virtual void setIndicatorShadowColor(Api::Color color);
+            virtual void setIndicatorHighlightColor(Api::Color color);
+            virtual void setBitmap(Platform::Windows::Bitmap* bmp);
+            virtual void setFineTuneDivider(float divider);
+            virtual float getFineTuneDivider();
+
             void updateMathConstants();
-            void calculateXYFromValue(POINT* outPoint);
-            float calculateAngleFromPoint(POINT* point);
-            void setIndicatorShadowColor(Api::ColorRGBA color);
-            void setIndicatorHighlightColor(Api::ColorRGBA color);
-            void setBitmap(Platform::Windows::Bitmap* bmp);
-            float getStartAngle();
-            float getTotalRange();
-            void setKnobRadius(float radius);
-            void setFineTuneDivider(float divider);
-            float getFineTuneDivider();
     };
 }
 }

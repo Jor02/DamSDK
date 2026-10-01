@@ -12,10 +12,9 @@ namespace Controls {
             int	totalFrames; // 0x8c
             int	frameHeight; // 0x90
         public:
-            Knob(RECT *pRect, callbackCallback callback, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *bmp, POINT *origin);
+            Knob(RECT *pRect, ControlListener* listener, int parameterId, int minValue, int maxValue, Platform::Windows::Bitmap *bmp, POINT *origin);
             ~Knob();
             Knob* destructor(bool deleteObject);
-            void destroy();
             virtual void onDraw(Platform::Windows::GDIDrawingContext* drawingContext) override;
     };
 }

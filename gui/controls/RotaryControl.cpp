@@ -1,4 +1,5 @@
 #pragma once
+#include "damsdk/gui/platform/windows/GDIDrawingContext.h"
 #include <cmath>
 #include "RotaryControl.h"
 #include "damsdk/api/EditorBase.h"
@@ -8,7 +9,7 @@ namespace DamSDK {
 namespace Gui {
 namespace Controls {
     // FUNCTION: DELAYLAMA 0x10008e40
-    RotaryControl::RotaryControl(RECT* pRect, callbackCallback callback, int parameterId, Platform::Windows::Bitmap* bmp1, Platform::Windows::Bitmap* bmp2, POINT* srcPoint) : Control(pRect, callback, parameterId, bmp1) {
+    RotaryControl::RotaryControl(RECT* pRect, ControlListener* listener, int parameterId, Platform::Windows::Bitmap* bmp1, Platform::Windows::Bitmap* bmp2, POINT* srcPoint) : Control(pRect, listener, parameterId, bmp1) {
         this->srcPoint.x = srcPoint->x;
         LONG y = srcPoint->y;
         this->bmp = bmp2;
@@ -17,275 +18,174 @@ namespace Controls {
             this->knobRadius = 3;
         }
         else {
-            View::useBitmap(bmp2);
+            bmp2->remember();
             int result = static_cast<int>(bmp2->width * 0.5f + 2.5f);
             this->knobRadius = result;
         }
 
-        COLORREF grayColor = Platform::Windows::DAT_GRAY_COLOR;
-        this->indicatorShadowColor.bytes.r = (byte)grayColor;
-        this->indicatorShadowColor.bytes.g = (byte)(grayColor >> 8);
-        this->indicatorShadowColor.bytes.b = (byte)(grayColor >> 0x10);
-        this->indicatorShadowColor.bytes.a = (byte)(grayColor >> 0x18);
+        this->indicatorShadowColor = Platform::Windows::kGreyColor;
+        this->indicatorHighlightColor = Platform::Windows::kWhiteColor;
 
-        COLORREF backgroundColor = Platform::Windows::DAT_FOREGROUND_COLOR;
-        this->indicatorHighlightColor.bytes.r = (byte)backgroundColor;
-        this->indicatorHighlightColor.bytes.g = (byte)(backgroundColor >> 8);
-        this->indicatorHighlightColor.bytes.b = (byte)(backgroundColor >> 0x10);
-        this->indicatorHighlightColor.bytes.a = (byte)(backgroundColor >> 0x18);
-
-        int iVar1 = pRect->right;
-        int iVar2 = pRect->left;
+        int right = pRect->right;
+        int left = pRect->left;
 
         this->totalRange = 1.0f;
-        this->center = (float)(iVar1 - iVar2) * 0.5f;
+        this->center = (float)(right - left) * 0.5f;
         setStartAngle(3.9269907f);
         setTotalRange(-4.712389f);
         this->fineTuneDivider = 1.5;
     }
 
-    // FUNCTION: DELAYLAMA 0x10008f60
-    RotaryControl::~RotaryControl() {
-        this->destroy();
-    }
-
     // FUNCTION: DELAYLAMA 0x10008f80
-    void RotaryControl::destroy() {
+    RotaryControl::~RotaryControl() {
         Platform::Windows::Bitmap* bmp = this->bmp;
         if (bmp != nullptr) {
-            Platform::Windows::Bitmap::unregisterBitmap(bmp);
+            bmp->unregisterBitmap();
         }
-        Control::destroy();
     }
 
     // FUNCTION: DELAYLAMA 0x10008fe0
-    void RotaryControl::onDraw(Platform::Windows::GDIDrawingContext *drawingContext)
-    {
-        Platform::Windows::Bitmap *bitmap = this->bitmap;
-        if (bitmap != nullptr)
-        {
-            RECT *destRect = &this->rect;
-            POINT *srcPoint = &this->srcPoint;
-            if (this->useAlphaBlending == false)
-            {
-                bitmap->blit(drawingContext, destRect, srcPoint);
-            }
+    void RotaryControl::onDraw(Platform::Windows::GDIDrawingContext *drawingContext) {
+        if (this->bitmap) {
+            if (this->useAlphaBlending)
+                this->bitmap->drawMasked(drawingContext, &this->rect, &this->srcPoint);
             else
-            {
-                bitmap->drawMasked(drawingContext, destRect, srcPoint);
-            }
+                this->bitmap->blit(drawingContext, &this->rect, &this->srcPoint);
         }
         this->drawIndicator(drawingContext);
         this->setDirty(false);
     }
 
-    // STUB: DELAYLAMA 0x10009030
+    // FUNCTION: DELAYLAMA 0x10009030
     void RotaryControl::drawIndicator(Platform::Windows::GDIDrawingContext* drawingContext) {
-        // int centerX;
-        // int centerY;
-        // POINT sourceOffset;
-        // RECT destRect;
-        // GDIDrawingContext *drawContext;
-        // Bitmap *knobBitmap;
-        //
-        // centerY = 0;
-        // sourceOffset.x = 0;
-        // (*this->vtable->calculateXYFromValue)(&centerY);
-        // knobBitmap = this->bmp;
-        //                   // BITMAP RENDERING
-        // if (knobBitmap != (Bitmap *)0x0) {
-        //   destRect.left =
-        //        centerX + (this->rect.left - (int)knobBitmap->width / 2);
-        //   centerY = centerY + (this->rect.top - (int)knobBitmap->height / 2)
-        //   ;
-        //   destRect.bottom = centerY + knobBitmap->height;
-        //   destRect.right = knobBitmap->width + destRect.left;
-        //   sourceOffset.x = 0;
-        //   sourceOffset.y = 0;
-        //   destRect.top = centerY;
-        //   Bitmap::drawMasked(knobBitmap,drawContext,&destRect,&sourceOffset);
-        //   return;
-        // }
-        //                   // VECTOR RENDERING (Fallback)
-        // sourceOffset.y = this->rect.top;
-        // sourceOffset.x =
-        //      (this->rect.right -
-        //      this->rect.left) / 2 + -1 +
-        //      this->rect.left;
-        // centerY = centerY + sourceOffset.y;
-        // sourceOffset.y =
-        //      (this->rect.bottom - sourceOffset.y) / 2 + sourceOffset.y;
-        // GDIDrawingContext::setPenColor(drawContext,this->indicatorShadowColor);
-        // GDIDrawingContext::moveToEx(drawContext,(POINT *)&stack0xffffffdc);
-        // GDIDrawingContext::lineTo(drawContext,&sourceOffset);
-        // centerY = centerY + -1;
-        // sourceOffset.x = sourceOffset.x + 1;
-        // sourceOffset.y = sourceOffset.y + -1;
-        // GDIDrawingContext::setPenColor(drawContext,this->indicatorHighlightColor);
-        // GDIDrawingContext::moveToEx(drawContext,(POINT *)&stack0xffffffdc);
-        // GDIDrawingContext::lineTo(drawContext,&sourceOffset);
-        // return;
+        // Same steps as VSTGUI's CKnob::drawHandle
+        POINT where = {0, 0};
+        this->calculateXYFromValue(&where);
+
+        if (this->bmp) {
+            // Draw the handle bitmap centred on the handle position
+            long width = this->bmp->width;
+            long height = this->bmp->height;
+            where.x += this->rect.left - width / 2;
+            where.y += this->rect.top - height / 2;
+            RECT handleRect = {where.x, where.y, where.x + width, where.y + height};
+            POINT zero = {0, 0};
+            this->bmp->drawMasked(drawingContext, &handleRect, &zero);
+        }
+        else {
+            // Draw the indicator line from the handle to the centre, with a shadow
+            POINT origin;
+            origin.x = (this->rect.right - this->rect.left) / 2;
+            origin.y = (this->rect.bottom - this->rect.top) / 2;
+            where.x += this->rect.left - 1;
+            where.y += this->rect.top;
+            origin.x += this->rect.left - 1;
+            origin.y += this->rect.top;
+            drawingContext->setPenColor(this->indicatorShadowColor);
+            drawingContext->moveToEx(&where);
+            drawingContext->lineTo(&origin);
+
+            where.x += 1;
+            where.y -= 1;
+            origin.x += 1;
+            origin.y -= 1;
+            drawingContext->setPenColor(this->indicatorHighlightColor);
+            drawingContext->moveToEx(&where);
+            drawingContext->lineTo(&origin);
+        }
     }
 
     // FUNCTION: DELAYLAMA 0x10009190
-    void RotaryControl::onMouseDown(Platform::Windows::GDIDrawingContext *drawingContext, POINT *mousePos)
-    {
-        float halfRange;
-        bool isDirty;
-        uint32_t currentModifiers;
-        int prevMouseX;
-        int prevMouseY;
-        float defaultParamValue;
-        float calculatedAngle;
-        float valuePerPixel;
-        float paramRange;
-        float previousAngle;
-        float baseParamValue;
-        uint32_t prevModifiers;
-        POINT dragStartMouse;
-        bool isLinearMode;
-        int currentMouseX;
-        int currentMouseY;
-        int linearDelta;
-        int boundsTop;
-        float sensitivityPixels;
-        POINT relativeMousePos;
+    void RotaryControl::onMouseDown(Platform::Windows::GDIDrawingContext *drawingContext, POINT *mousePos) {
+        // Same steps as VSTGUI's CKnob::mouse
+        if (!this->isEnabled)
+            return;
 
-        if (this->isEnabled == false)
-        {
+        uint32_t button = drawingContext->getMouseButtons();
+        if (!(button & kLButton))
+            return;
+
+        // Ctrl + click: reset to the default value
+        if (button == (kLButton | kControl)) {
+            this->value = this->getDefaultValue();
+            if (this->isDirty())
+                this->listener->valueChanged(drawingContext, this);
             return;
         }
 
-        prevModifiers = View::GetPressedModifiersAndMouseButtons();
+        float old = this->prevValue;
+        POINT firstPoint = {0, 0};
+        bool modeLinear = false;
+        float entryState = this->value;
+        float middle = (this->max - this->min) * 0.5f;
+        float range = 200.0f;
+        float coef = (this->max - this->min) / range;
+        uint32_t oldButton = button;
 
-        // Exit if Left Click is not down
-        if ((prevModifiers & 1) == 0)
-        {
-            return;
+        // Linear mode when the knob mode is linear, or when Alt is held (inverted)
+        int mode = 0;
+        int newMode = Api::GLOBAL_KNOB_MODE;
+        if (newMode == 2) {
+            if (!(button & kAlt))
+                mode = newMode;
+        }
+        else if (button & kAlt) {
+            mode = 2;
         }
 
-        // CTRL + Click: Reset to Default
-        if (prevModifiers == 0x11)
-        {
-            defaultParamValue = this->getDefaultValue();
-            this->value = (float)defaultParamValue;
-            isDirty = this->isDirty();
-            if (isDirty == false)
-            {
-                return;
-            }
-            this->callback(drawingContext, this);
-            return;
+        if (mode == 2 && (button & kLButton)) {
+            if (button & kShift)
+                range *= this->fineTuneDivider;
+            firstPoint = *mousePos;
+            modeLinear = true;
+            coef = (this->max - this->min) / range;
+        }
+        else {
+            POINT where2 = *mousePos;
+            where2.x -= this->rect.left;
+            where2.y -= this->rect.top;
+            old = this->calculateAngleFromPoint(&where2);
         }
 
-        paramRange = (float)(this->max - this->min);
-        previousAngle = this->prevValue;
-        baseParamValue = this->value;
-        dragStartMouse.x = 0;
-        dragStartMouse.y = 0;
-        halfRange = paramRange * 0.5f;
-        isLinearMode = false;
-        valuePerPixel = paramRange * 0.005f;
-        sensitivityPixels = 200.0f;
-
-        if (Api::GLOBAL_KNOB_MODE == 2)
-        {
-            // If Alt is held, use Radial/Angular mode
-            if ((prevModifiers & 0x20) != 0)
-            {
-            LAB_RADIAL_MODE:
-                relativeMousePos.x = mousePos->x - this->rect.left;
-                relativeMousePos.y = mousePos->y - this->rect.top;
-                calculatedAngle = this->calculateAngleFromPoint(&relativeMousePos);
-                previousAngle = (float)calculatedAngle;
-                goto LAB_START_DRAG_LOOP;
-            }
-        }
-        else if ((prevModifiers & 0x20) == 0)
-            goto LAB_RADIAL_MODE;
-
-        // Linear Mode Setup
-        if ((prevModifiers & 8) != 0)
-        {
-            // Shift-key for fine-tuning
-            sensitivityPixels = this->fineTuneDivider * 200.0f;
-        }
-        valuePerPixel = paramRange / sensitivityPixels;
-        isLinearMode = true;
-        dragStartMouse.x = mousePos->x;
-        dragStartMouse.y = mousePos->y;
-
-    LAB_START_DRAG_LOOP:
-        prevMouseX = -1;
-        prevMouseY = -1;
+        POINT oldWhere = {-1, -1};
         this->parent->beginEdit(this->parameterId);
-        do
-        {
-            currentModifiers = View::GetPressedModifiersAndMouseButtons();
-            currentMouseX = mousePos->x;
-            currentMouseY = mousePos->y;
-
-            if ((currentMouseX != prevMouseX) || (currentMouseY != prevMouseY))
-            {
-                prevMouseY = currentMouseY;
-                prevMouseX = currentMouseX;
-
-                if (isLinearMode)
-                {
-                    linearDelta = ((currentMouseX - currentMouseY) - dragStartMouse.x) + dragStartMouse.y;
-                    if (currentModifiers != prevModifiers)
-                    {
-                        sensitivityPixels = 200.0f;
-                        if ((currentModifiers & 8) != 0)
-                        {
-                            sensitivityPixels = this->fineTuneDivider * 200.0f;
-                        }
-                        sensitivityPixels = (this->max - this->min) / sensitivityPixels;
-                        baseParamValue = (valuePerPixel - sensitivityPixels) * (float)linearDelta + baseParamValue;
-                        valuePerPixel = sensitivityPixels;
-                        prevModifiers = currentModifiers;
+        do {
+            button = drawingContext->getMouseButtons();
+            if (mousePos->x != oldWhere.x || mousePos->y != oldWhere.y) {
+                oldWhere = *mousePos;
+                if (modeLinear) {
+                    long diff = (firstPoint.y - mousePos->y) + (mousePos->x - firstPoint.x);
+                    if (oldButton != button) {
+                        range = 200.0f;
+                        if (button & kShift)
+                            range *= this->fineTuneDivider;
+                        float coef2 = (this->max - this->min) / range;
+                        entryState += diff * (coef - coef2);
+                        coef = coef2;
+                        oldButton = button;
                     }
-                    this->value = (float)linearDelta * valuePerPixel + baseParamValue;
+                    this->value = entryState + diff * coef;
                     this->clampValue();
                 }
-                else
-                {
-                    boundsTop = this->rect.top;
-                    relativeMousePos.x = currentMouseX - this->rect.left;
-                    relativeMousePos.y = currentMouseY - boundsTop;
-                    calculatedAngle = this->calculateAngleFromPoint(&relativeMousePos);
-                    this->value = (float)calculatedAngle;
-
-                    // Wrap-around logic bounds checking
-                    if (previousAngle - calculatedAngle <= halfRange)
-                    {
-                        if (calculatedAngle - previousAngle <= halfRange)
-                        {
-                            previousAngle = (float)calculatedAngle;
-                        }
-                        else
-                        {
-                            this->value = this->min;
-                        }
-                    }
-                    else
-                    {
+                else {
+                    mousePos->x -= this->rect.left;
+                    mousePos->y -= this->rect.top;
+                    this->value = this->calculateAngleFromPoint(mousePos);
+                    if (old - this->value > middle)
                         this->value = this->max;
-                    }
+                    else if (this->value - old > middle)
+                        this->value = this->min;
+                    else
+                        old = this->value;
                 }
-
-                isDirty = this->isDirty();
-                if (isDirty != false)
-                {
-                    this->callback(drawingContext, this);
-                }
+                if (this->isDirty())
+                    this->listener->valueChanged(drawingContext, this);
             }
             drawingContext->getRelativeMousePos(mousePos);
             this->onIdle();
-        } while ((currentModifiers & 1) != 0);
+        } while (button & kLButton);
 
         this->parent->endEdit(this->parameterId);
-        return;
     }
 
     // FUNCTION: DELAYLAMA 0x10009470
@@ -302,10 +202,9 @@ namespace Controls {
 
     // FUNCTION: DELAYLAMA 0x10009490
     void RotaryControl::updateMathConstants() {
-        float valueWidth = (this->max - this->min) / this->totalRange;
-        this->angleRange = valueWidth;
-        this->angleOffset = this->min - valueWidth * this->startAngle;
-        this->deadZoneSize = (6.2831855f - abs((float)this->totalRange)) * 0.5f;
+        this->angleRange = (this->max - this->min) / this->totalRange;
+        this->angleOffset = this->min - this->angleRange * this->startAngle;
+        this->deadZoneSize = (6.2831855f - (float)fabs(this->totalRange)) * 0.5f;
         this->setDirty(true);
     }
 
@@ -338,82 +237,65 @@ namespace Controls {
         rawAngle = rawAngle - this->startAngle;
         float normalizedAngle;
         float rangePlusDeadzone;
-        if (0.0f <= this->totalRange) {
-            if (0.0f <= rawAngle) {
+        if (this->totalRange < 0.0f) {
+            rawAngle = rawAngle - this->totalRange;
             normalizedAngle = rawAngle;
-            if (6.283185307179586f < rawAngle) {
-                normalizedAngle = rawAngle - 6.2831855f;
-            }
-            }
-            else {
+            if (rawAngle < 0.0f) {
                 normalizedAngle = rawAngle + 6.2831855f;
             }
-
-            rangePlusDeadzone = this->totalRange + this->deadZoneSize;
-            if (rangePlusDeadzone < normalizedAngle) {
-                return this->min;
-            }
-            if (this->totalRange < normalizedAngle) {
-                return this->max;
-            }
-            if (rangePlusDeadzone < rawAngle) {
-                return (rawAngle - 6.2831855f) * (float)this->angleRange + this->min;
-            }
-            if (rawAngle < -(float)this->deadZoneSize) {
-                rawAngle = rawAngle + 6.2831855f;
-            }
-
-            return rawAngle * (float)this->angleRange + this->min;
-        }
-
-        rawAngle = rawAngle - this->totalRange;
-        if (0.0f <= rawAngle) {
-            normalizedAngle = rawAngle;
-            if (6.283185307179586f < rawAngle) {
+            else if (rawAngle > 6.283185307179586) {
                 normalizedAngle = rawAngle - 6.2831855f;
             }
+
+            rangePlusDeadzone = this->deadZoneSize - this->totalRange;
+            if (normalizedAngle > rangePlusDeadzone) {
+                return this->max;
+            }
+            if (normalizedAngle > -this->totalRange) {
+                return this->min;
+            }
+            if (rawAngle > rangePlusDeadzone) {
+                return (rawAngle - 6.2831855f) * this->angleRange + this->max;
+            }
+            if (rawAngle < -this->deadZoneSize) {
+                rawAngle = rawAngle + 6.2831855f;
+            }
+            return rawAngle * this->angleRange + this->max;
         }
-        else {
+
+        normalizedAngle = rawAngle;
+        if (rawAngle < 0.0f) {
             normalizedAngle = rawAngle + 6.2831855f;
         }
-
-        rangePlusDeadzone = this->deadZoneSize - this->totalRange;
-
-        if (rangePlusDeadzone < normalizedAngle) {
-            return this->max;
+        else if (rawAngle > 6.283185307179586) {
+            normalizedAngle = rawAngle - 6.2831855f;
         }
 
-        if (-this->totalRange < normalizedAngle) {
+        rangePlusDeadzone = this->totalRange + this->deadZoneSize;
+        if (normalizedAngle > rangePlusDeadzone) {
             return this->min;
         }
-
-        if (rangePlusDeadzone < rawAngle) {
-            return (rawAngle - 6.2831855f) * (float)this->angleRange +
-                this->max;
+        if (normalizedAngle > this->totalRange) {
+            return this->max;
         }
-
+        if (rawAngle > rangePlusDeadzone) {
+            return (rawAngle - 6.2831855f) * this->angleRange + this->min;
+        }
         if (rawAngle < -this->deadZoneSize) {
             rawAngle = rawAngle + 6.2831855f;
         }
-
-        return rawAngle * this->angleRange + this->max;
+        return rawAngle * this->angleRange + this->min;
     }
 
     // FUNCTION: DELAYLAMA 0x100096c0
-    void RotaryControl::setIndicatorShadowColor(Api::ColorRGBA color) {
-        this->indicatorShadowColor.bytes.r = color.bytes.r;
-        this->indicatorShadowColor.bytes.g = color.bytes.g;
-        this->indicatorShadowColor.bytes.b = color.bytes.b;
-        this->indicatorShadowColor.bytes.a = color.bytes.a;
+    void RotaryControl::setIndicatorShadowColor(Api::Color color) {
+        this->indicatorShadowColor = color;
         this->setDirty(true);
     }
 
     // FUNCTION: DELAYLAMA 0x100096f0
-    void RotaryControl::setIndicatorHighlightColor(Api::ColorRGBA color) {
-        this->indicatorHighlightColor.bytes.r = color.bytes.r;
-        this->indicatorHighlightColor.bytes.g = color.bytes.g;
-        this->indicatorHighlightColor.bytes.b = color.bytes.b;
-        this->indicatorHighlightColor.bytes.a = color.bytes.a;
+    void RotaryControl::setIndicatorHighlightColor(Api::Color color) {
+        this->indicatorHighlightColor = color;
         this->setDirty(true);
     }
 
@@ -421,12 +303,12 @@ namespace Controls {
     void RotaryControl::setBitmap(Platform::Windows::Bitmap* bmp) {
         Platform::Windows::Bitmap* oldBitmap = this->bmp;
         if (oldBitmap != nullptr) {
-            Platform::Windows::Bitmap::unregisterBitmap(oldBitmap);
+            oldBitmap->unregisterBitmap();
             this->bmp = nullptr;
         }
         if (bmp != nullptr) {
             this->bmp = bmp;
-            View::useBitmap(bmp);
+            bmp->remember();
             int bitmapWidth = bmp->width;
             int knobRadius = static_cast<int>(static_cast<float>(bitmapWidth) * 0.5f + 2.5f);
             this->knobRadius = knobRadius;
@@ -444,7 +326,7 @@ namespace Controls {
     }
 
     // FUNCTION: DELAYLAMA 0x10009790
-    void RotaryControl::setKnobRadius(float radius) {
+    void RotaryControl::setKnobRadius(int radius) {
         this->knobRadius = radius;
     }
 
